@@ -13,17 +13,22 @@ netlify.toml          ← configuración de Netlify (sin build)
 
 ## Desplegar en Netlify desde GitHub
 
+El repo ya está publicado en **https://github.com/gaolivaresm/pedro-rules** (rama `main`).
+
+Para subir cambios en el futuro:
+
 ```bash
 cd ~/juegos
-git remote add origin git@github.com:TU-USUARIO/TU-REPO.git
-git branch -M main
-git push -u origin main
+git add -A
+git commit -m "lo que cambiaste"
+git push
 ```
 
-Luego, en Netlify: **Add new site → Import an existing project → GitHub → tu repo**.
+Luego, en Netlify: **Add new site → Import an existing project → GitHub → `pedro-rules`**.
 
 | Ajuste en Netlify | Valor |
 |---|---|
+| Branch to deploy | `main` |
 | Build command | *(vacío)* |
 | Publish directory | `.` |
 | Framework preset | None |

@@ -5,11 +5,11 @@ se publica la carpeta tal cual (Netlify, GitHub Pages, o un `python3 -m http.ser
 
 ```
 index.html            ← portada: elegir juego
-piso-es-lava.html     ← juego 1 (10 niveles) - lava
-cielo-se-cae.html     ← juego 2 (10 niveles) - nubes
-naturaleza.html       ← PROTOTIPO (3 niveles) - selva
-cosmico.html          ← PROTOTIPO (3 niveles) - espacio
-musica/               ← temas .ogg (+ los .rbs originales de ReBirth)
+piso-es-lava.html     ← 🌋 lava (10 niveles)
+cielo-se-cae.html     ← ☁️ nubes (10 niveles)
+naturaleza.html       ← 🌿 selva (10 niveles)
+cosmico.html          ← 🌌 espacio (10 niveles)
+musica/               ← 11 temas .ogg (+ los .rbs originales de ReBirth)
 netlify.toml          ← configuración de Netlify (sin build)
 ```
 
@@ -17,16 +17,27 @@ netlify.toml          ← configuración de Netlify (sin build)
 
 Cada mundo tiene **una mecánica propia**, no solo un cambio de colores:
 
-| Juego | Ambiente | Mecánica característica |
-|---|---|---|
-| El Piso es Lava | 🌋 lava | lava móvil que patrulla los huecos |
-| El Cielo se Cae | ☁️ cielo | nubes que se mecen y se hunden, brisa que empuja |
-| La Selva Sube *(prototipo)* | 🌿 selva | **ramas finas que se rompen** al pisarlas + **lianas** que te lanzan |
-| Órbita Perdida *(prototipo)* | 🌌 espacio | **gravedad baja** (0,26 en vez de 0,6) + **portales** que teletransportan |
+| Juego | Ambiente | Mecánica característica | Música |
+|---|---|---|---|
+| El Piso es Lava | 🌋 lava | lava móvil que patrulla los huecos | 3 temas, 132-92 BPM |
+| El Cielo se Cae | ☁️ cielo | nubes que se mecen y se hunden, brisa que empuja | 3 temas, 120-112 BPM |
+| La Selva Sube | 🌿 selva | **ramas finas que se rompen** + **lianas** que lanzan | 2 temas, 112-116 BPM, tambores |
+| Órbita Perdida | 🌌 espacio | **gravedad baja** (0,26 vs 0,6) + **portales** | 2 temas, 88-96 BPM, con eco |
 
-Los dos prototipos están **completos y jugables** (3 niveles cada uno, con música, móvil y
-verificados), pero pendientes de ampliar a 10 niveles y de música propia: por ahora reutilizan
-los temas ya compuestos.
+### Pruebas
+
+```bash
+cd /tmp/pwtest
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_portada.cjs       # portada + 4 juegos + subcarpeta
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_piso_es_lava.cjs   # 29
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_cielo_se_cae.cjs   # 35
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_selva.cjs          # 25
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_cosmos.cjs         # 23
+```
+
+Los cuatro juegos se comprobaron además **jugables de principio a fin** con
+`escalera_cielo_se_cae.cjs` (adapta la ruta cambiando el nombre del archivo):
+los 10 niveles de cada uno se suben peldaño a peldaño con el motor real.
 
 ## Desplegar en Netlify desde GitHub
 

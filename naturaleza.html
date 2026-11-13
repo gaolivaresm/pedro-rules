@@ -163,7 +163,7 @@ const msgEl = document.getElementById('msg');
 const GRAVITY = 0.6;
 const FRICTION = 0.85;
 const MAX_JUMPS = 2;
-const MAX_LEVEL = 3;
+const MAX_LEVEL = 10;
 const MOVE_ACCEL = 0.6;
 const MAX_SPEED = 5;
 const JUMP_POWER = 12;
@@ -285,7 +285,7 @@ function makeRoot(x1, y1, x2, y2) {
 }
 // Liana: te agarra y te lanza en la direccion en que vayas
 function makeVine(x, y, w, h, force) {
-  return { x, y, w, h, force: force || -0.12, active: false, timer: 0 };
+  return { x, y, w, h, force: force || -0.12, active: false, timer: 0, cool: 0 };
 }
 
 // ---------- Niveles de la selva ----------
@@ -361,10 +361,176 @@ function level3() {
   };
 }
 
+function level4() {
+  // Claro alto: dos ramas finas seguidas y una liana que cruza
+  return {
+    platforms: [
+      makeBranch(0, 470, 140),
+      makeTrunk(220, 425, 110),
+      makeBranch(380, 370, 100, 10, true),
+      makeBranch(530, 315, 95, 10, true),
+      makeTrunk(680, 255, 110),
+    ],
+    slopes: [makeRoot(140, 470, 220, 430), makeRoot(330, 425, 380, 375)],
+    leaves: [makeStar(275, 390), makeStar(430, 335), makeStar(578, 280), makeStar(735, 220)],
+    vines: [makeVine(490, 300, 50, 90, 0.20)],
+    flower: null,
+    goal: { x: 710, y: 205, w: 60, h: 50 }
+  };
+}
+
+function level5() {
+  // Vaiven: sube, baja y sube, con dos lianas en sentidos contrarios
+  return {
+    platforms: [
+      makeBranch(0, 470, 130),
+      makeBranch(200, 420, 95, 12, true),
+      makeTrunk(360, 360, 100),
+      makeBranch(520, 300, 90, 10, true),
+      makeBranch(390, 240, 85, 8),
+      makeBranch(180, 190, 100, 6),
+      makeBranch(350, 135, 110, 6),
+    ],
+    slopes: [makeRoot(130, 470, 200, 425), makeRoot(465, 360, 520, 305)],
+    leaves: [makeStar(248, 385), makeStar(410, 325), makeStar(565, 265),
+             makeStar(432, 205), makeStar(230, 155), makeStar(405, 100)],
+    vines: [makeVine(300, 250, 50, 100, 0.22), makeVine(560, 180, 50, 100, -0.22)],
+    flower: { x: 265, y: 115, r: 11, collected: false },
+    goal: { x: 370, y: 85, w: 60, h: 50 }
+  };
+}
+
+function level6() {
+  // Escalera de ramas: todas finas menos los troncos de descanso
+  return {
+    platforms: [
+      makeBranch(0, 470, 120),
+      makeBranch(180, 425, 85, 10, true),
+      makeBranch(320, 375, 80, 12, true),
+      makeTrunk(450, 320, 95),
+      makeBranch(600, 265, 80, 10, true),
+      makeBranch(450, 210, 80, 8, true),
+      makeBranch(280, 155, 85, 6),
+      makeBranch(500, 105, 95, 6, true),
+    ],
+    slopes: [makeRoot(120, 470, 180, 430), makeRoot(400, 375, 450, 325)],
+    leaves: [makeStar(222, 390), makeStar(360, 340), makeStar(497, 285),
+             makeStar(640, 230), makeStar(490, 175), makeStar(322, 120)],
+    vines: [makeVine(230, 240, 50, 110, 0.20)],
+    flower: { x: 300, y: 85, r: 11, collected: false },
+    goal: { x: 525, y: 55, w: 60, h: 50 }
+  };
+}
+
+function level7() {
+  // Dosel: ramas separadas con lianas encadenadas
+  return {
+    platforms: [
+      makeBranch(0, 470, 120),
+      makeTrunk(180, 425, 100),
+      makeBranch(340, 365, 85, 10, true),
+      makeBranch(490, 305, 80, 10, true),
+      makeTrunk(620, 245, 100),
+      makeBranch(450, 185, 85, 8),
+      makeBranch(620, 125, 110, 6),
+    ],
+    slopes: [makeRoot(120, 470, 180, 430), makeRoot(280, 425, 340, 370)],
+    leaves: [makeStar(230, 390), makeStar(382, 330), makeStar(530, 270),
+             makeStar(670, 210), makeStar(492, 150), makeStar(675, 90)],
+    vines: [makeVine(430, 220, 50, 100, 0.22), makeVine(700, 200, 45, 90, -0.20)],
+    flower: { x: 380, y: 150, r: 11, collected: false },
+    goal: { x: 645, y: 75, w: 60, h: 50 }
+  };
+}
+
+function level8() {
+  // Viento alto: ramas muy finas, hay que encadenar saltos
+  return {
+    platforms: [
+      makeBranch(0, 470, 110),
+      makeBranch(170, 430, 75, 14, true),
+      makeBranch(300, 380, 70, 14, true),
+      makeTrunk(420, 325, 90),
+      makeBranch(560, 270, 70, 12, true),
+      makeBranch(690, 320, 80, 10, true),
+      makeBranch(540, 215, 70, 10, true),
+      makeBranch(380, 160, 75, 8),
+      makeBranch(520, 105, 90, 6, true),
+    ],
+    slopes: [makeRoot(110, 470, 170, 435), makeRoot(360, 380, 420, 330)],
+    leaves: [makeStar(207, 395), makeStar(335, 345), makeStar(465, 290),
+             makeStar(595, 235), makeStar(730, 285), makeStar(575, 180),
+             makeStar(417, 125)],
+    vines: [makeVine(300, 210, 50, 110, 0.22), makeVine(660, 160, 45, 110, -0.22)],
+    flower: { x: 330, y: 105, r: 11, collected: false },
+    goal: { x: 545, y: 55, w: 60, h: 50 }
+  };
+}
+
+function level9() {
+  // Lianas: el nivel de las lianas. Huecos grandes que solo se cruzan con ellas
+  return {
+    platforms: [
+      makeBranch(0, 470, 120),
+      makeBranch(210, 430, 85, 10, true),
+      makeTrunk(380, 370, 100),
+      makeBranch(560, 310, 80, 10, true),
+      makeBranch(700, 250, 85, 8),
+      makeBranch(530, 190, 85, 8, true),
+      makeBranch(350, 135, 90, 6),
+      makeBranch(520, 80, 95, 6, true),
+    ],
+    slopes: [makeRoot(120, 470, 210, 435), makeRoot(480, 370, 560, 315)],
+    leaves: [makeStar(252, 395), makeStar(430, 335), makeStar(600, 275),
+             makeStar(742, 215), makeStar(572, 155), makeStar(395, 100),
+             makeStar(567, 45)],
+    vines: [makeVine(300, 220, 55, 120, 0.24),
+            makeVine(620, 130, 50, 110, -0.22),
+            makeVine(430, 60, 50, 80, 0.20)],
+    flower: { x: 265, y: 120, r: 11, collected: false },
+    goal: { x: 545, y: 30, w: 60, h: 50 }
+  };
+}
+
+function level10() {
+  // La copa: todo junto. Ramas finas, tres lianas y la flor mas alta
+  return {
+    platforms: [
+      makeBranch(0, 470, 110),
+      makeBranch(180, 430, 75, 12, true),
+      makeBranch(310, 385, 70, 14, true),
+      makeTrunk(430, 330, 85),
+      makeBranch(560, 275, 70, 12, true),
+      makeBranch(680, 320, 75, 10, true),
+      makeBranch(540, 220, 70, 10, true),
+      makeBranch(390, 170, 70, 8, true),
+      makeBranch(530, 115, 75, 6),
+      makeBranch(660, 65, 100, 6, true),
+    ],
+    slopes: [makeRoot(110, 470, 180, 435), makeRoot(370, 385, 430, 335),
+             makeRoot(610, 275, 680, 325)],
+    leaves: [makeStar(217, 395), makeStar(345, 350), makeStar(472, 295),
+             makeStar(595, 240), makeStar(717, 285), makeStar(575, 185),
+             makeStar(425, 135), makeStar(567, 80), makeStar(710, 30)],
+    vines: [makeVine(280, 200, 55, 120, 0.26),
+            makeVine(640, 150, 50, 110, -0.24),
+            makeVine(330, 70, 50, 90, 0.22)],
+    flower: { x: 620, y: 40, r: 11, collected: false },
+    goal: { x: 685, y: 15, w: 60, h: 50 }
+  };
+}
+
 function handcraftedLevel(lvl) {
   if (lvl === 1) return level1();
   if (lvl === 2) return level2();
   if (lvl === 3) return level3();
+  if (lvl === 4) return level4();
+  if (lvl === 5) return level5();
+  if (lvl === 6) return level6();
+  if (lvl === 7) return level7();
+  if (lvl === 8) return level8();
+  if (lvl === 9) return level9();
+  if (lvl === 10) return level10();
   return null;
 }
 
@@ -403,10 +569,17 @@ function beep(freq, duration, type, volume) {
 // Un tema distinto por nivel, todos alegres y con aire "celestial".
 
 const MUSIC_THEMES = {
-  // Prototipo: usa los temas existentes hasta componer los de la selva
-  1: { url: 'musica/cielo-2-brisa.ogg', volume: 0.40 },
-  2: { url: 'musica/cielo-1-nubes.ogg', volume: 0.40 },
-  3: { url: 'musica/cielo-3-altura.ogg', volume: 0.42 },
+  // los dos temas propios del ambiente se turnan por nivel
+  1: { url: 'musica/selva-1-enredadera.ogg', volume: 0.42 },
+  2: { url: 'musica/selva-2-dosel.ogg', volume: 0.42 },
+  3: { url: 'musica/selva-1-enredadera.ogg', volume: 0.42 },
+  4: { url: 'musica/selva-2-dosel.ogg', volume: 0.42 },
+  5: { url: 'musica/selva-1-enredadera.ogg', volume: 0.42 },
+  6: { url: 'musica/selva-2-dosel.ogg', volume: 0.42 },
+  7: { url: 'musica/selva-1-enredadera.ogg', volume: 0.42 },
+  8: { url: 'musica/selva-2-dosel.ogg', volume: 0.42 },
+  9: { url: 'musica/selva-1-enredadera.ogg', volume: 0.42 },
+  10: { url: 'musica/selva-2-dosel.ogg', volume: 0.42 },
   victory: { url: 'musica/cielo-victoria.ogg', volume: 0.5 }
 };
 
@@ -590,7 +763,7 @@ function updateVines() {
   for (const v of data.vines || []) {
     if (v.cool > 0) v.cool--;
     const touching = rectsCollide(player.x, player.y, player.w, player.h, v.x, v.y, v.w, v.h);
-    if (touching && v.cool === 0 && !v.active) {
+    if (touching && !v.cool && !v.active) {
       v.active = true;
       v.cool = 40;                 // no vuelve a dispararse enseguida
       beep(420, 0.2, 'triangle', 0.045);
@@ -614,11 +787,14 @@ function update() {
   if (keys['ArrowLeft']) player.vx -= MOVE_ACCEL;
   if (keys['ArrowRight']) player.vx += MOVE_ACCEL;
 
+  // Activamos las lianas ANTES de aplicarlas (si no, empujarian un frame tarde)
+  updateVines();
+
   // La liana te lanza en su direccion mientras la estas tocando
   for (const v of data.vines || []) {
     if (v.active && rectsCollide(player.x, player.y, player.w, player.h, v.x, v.y, v.w, v.h)) {
-      player.vx += v.force;
-      player.vy -= 0.22;                     // tambien te eleva un poco
+      player.vx += v.force;                  // empuja hacia su lado
+      if (frame % 8 === 0) player.vy = -4.2; // y te impulsa hacia arriba
       if (frame % 6 === 0) spawnParticles(player.x + player.w / 2, player.y + player.h, '#8fdc6a', 2, 3);
     }
   }

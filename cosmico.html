@@ -164,7 +164,7 @@ const GRAVITY = 0.6;            // gravedad normal, la de siempre
 const SPACE_GRAVITY = 0.26;     // en el espacio caes despacio
 const FRICTION = 0.85;
 const MAX_JUMPS = 2;
-const MAX_LEVEL = 3;
+const MAX_LEVEL = 10;
 const MOVE_ACCEL = 0.6;
 const MAX_SPEED = 5;
 const JUMP_POWER = 12;
@@ -328,6 +328,7 @@ function level2() {
       makePortal(60, 410, 1),
       makePortal(380, 290, 1),     // de la entrada a media altura
       makePortal(720, 180, 2),     // y de aqui a la meta
+      makePortal(600, 160, 2),     // pareja del anterior
     ],
     crystal: { x: 300, y: 220, r: 11, collected: false },
     goal: { x: 690, y: 130, w: 60, h: 50 }
@@ -363,10 +364,178 @@ function level3() {
   };
 }
 
+function level4() {
+  // Lluvia de rocas: plataformas estrechas y dos portales
+  return {
+    platforms: [
+      makeRock(0, 470, 130),
+      makeRock(190, 425, 90, 8),
+      makeDeck(330, 370, 100),
+      makeRock(480, 315, 85, 10),
+      makeRock(620, 260, 90, 8),
+      makeRock(720, 175, 80),
+    ],
+    slopes: [makeRamp(130, 470, 190, 430)],
+    stars: [makeStar(235, 390), makeStar(380, 335), makeStar(522, 280), makeStar(665, 225)],
+    portals: [makePortal(60, 405, 1), makePortal(560, 195, 1)],
+    crystal: null,
+    goal: { x: 730, y: 125, w: 60, h: 50 }
+  };
+}
+
+function level5() {
+  // Cinturon doble: dos pares de portales encadenados
+  return {
+    platforms: [
+      makeRock(0, 470, 120),
+      makeDeck(180, 420, 100),
+      makeRock(350, 365, 85, 8),
+      makeRock(520, 305, 80, 10),
+      makeRock(670, 245, 85, 8),
+      makeRock(560, 165, 90, 6),
+    ],
+    slopes: [makeRamp(120, 470, 180, 425), makeRamp(460, 365, 520, 310)],
+    stars: [makeStar(230, 385), makeStar(392, 330), makeStar(560, 270),
+            makeStar(712, 210), makeStar(605, 130)],
+    portals: [makePortal(40, 400, 1), makePortal(340, 280, 1),
+              makePortal(700, 380, 2), makePortal(430, 130, 2)],
+    crystal: { x: 260, y: 230, r: 11, collected: false },
+    goal: { x: 580, y: 85, w: 60, h: 50 }
+  };
+}
+
+function level6() {
+  // Campo de asteroides: rocas muy separadas (la gravedad baja ayuda)
+  return {
+    platforms: [
+      makeRock(0, 470, 110),
+      makeRock(190, 430, 70, 12),
+      makeRock(330, 380, 65, 14),
+      makeDeck(470, 330, 80),
+      makeRock(600, 275, 65, 12),
+      makeRock(450, 215, 70, 10),
+      makeRock(280, 160, 75, 8),
+      makeRock(470, 105, 85, 6),
+    ],
+    slopes: [makeRamp(110, 470, 190, 435)],
+    stars: [makeStar(225, 395), makeStar(362, 345), makeStar(510, 295),
+            makeStar(632, 240), makeStar(485, 180), makeStar(317, 125)],
+    portals: [makePortal(60, 400, 1), makePortal(700, 200, 1)],
+    crystal: { x: 370, y: 90, r: 11, collected: false },
+    goal: { x: 495, y: 55, w: 60, h: 50 }
+  };
+}
+
+function level7() {
+  // Orbita cruzada: subes por la izquierda y vuelves por la derecha
+  return {
+    platforms: [
+      makeRock(0, 470, 120),
+      makeDeck(190, 420, 95),
+      makeRock(340, 365, 80, 10),
+      makeRock(490, 310, 75, 10),
+      makeDeck(640, 255, 95),
+      makeRock(500, 195, 80, 8),
+      makeRock(330, 140, 85, 6),
+      makeRock(510, 85, 95, 6),
+    ],
+    slopes: [makeRamp(120, 470, 190, 425), makeRamp(415, 365, 490, 315)],
+    stars: [makeStar(237, 385), makeStar(380, 330), makeStar(527, 275),
+            makeStar(687, 220), makeStar(540, 160), makeStar(372, 105)],
+    portals: [makePortal(40, 400, 1), makePortal(660, 150, 1)],
+    crystal: { x: 270, y: 100, r: 11, collected: false },
+    goal: { x: 535, y: 35, w: 60, h: 50 }
+  };
+}
+
+function level8() {
+  // Gravedad: rocas enanos y saltos muy largos, tres portales
+  return {
+    platforms: [
+      makeRock(0, 470, 105),
+      makeRock(180, 430, 65, 12),
+      makeRock(320, 380, 60, 14),
+      makeDeck(450, 330, 75),
+      makeRock(580, 275, 60, 12),
+      makeRock(700, 320, 75, 10),
+      makeRock(540, 210, 60, 10),
+      makeRock(380, 155, 65, 8),
+      makeRock(520, 100, 80, 6),
+    ],
+    slopes: [makeRamp(105, 470, 180, 435), makeRamp(385, 380, 450, 335)],
+    stars: [makeStar(212, 395), makeStar(350, 345), makeStar(487, 295),
+            makeStar(610, 240), makeStar(737, 285), makeStar(570, 175),
+            makeStar(412, 120)],
+    portals: [makePortal(40, 400, 1), makePortal(300, 250, 1),
+              makePortal(680, 200, 2), makePortal(560, 110, 2)],
+    crystal: { x: 330, y: 95, r: 11, collected: false },
+    goal: { x: 545, y: 50, w: 60, h: 50 }
+  };
+}
+
+function level9() {
+  // Nebulosa: subida larga con portales de retorno y mucho cristal
+  return {
+    platforms: [
+      makeRock(0, 470, 110),
+      makeRock(180, 425, 70, 12),
+      makeDeck(320, 370, 85),
+      makeRock(470, 315, 70, 12),
+      makeRock(620, 260, 65, 10),
+      makeRock(730, 310, 70, 8),
+      makeRock(560, 200, 65, 10),
+      makeRock(390, 145, 70, 8),
+      makeRock(540, 85, 85, 6),
+    ],
+    slopes: [makeRamp(110, 470, 180, 430), makeRamp(405, 370, 470, 320)],
+    stars: [makeStar(215, 390), makeStar(362, 335), makeStar(505, 280),
+            makeStar(652, 225), makeStar(765, 275), makeStar(592, 165),
+            makeStar(425, 110), makeStar(582, 50)],
+    portals: [makePortal(40, 400, 1), makePortal(640, 160, 1),
+              makePortal(340, 90, 2), makePortal(700, 60, 2)],
+    crystal: { x: 280, y: 120, r: 11, collected: false },
+    goal: { x: 565, y: 35, w: 60, h: 50 }
+  };
+}
+
+function level10() {
+  // El borde del sistema: todo junto, rocas minimas y cuatro portales
+  return {
+    platforms: [
+      makeRock(0, 470, 100),
+      makeRock(170, 430, 60, 14),
+      makeRock(300, 385, 58, 14),
+      makeDeck(420, 335, 70),
+      makeRock(540, 280, 58, 12),
+      makeRock(660, 325, 70, 10),
+      makeRock(540, 220, 58, 10),
+      makeRock(400, 165, 60, 8),
+      makeRock(520, 110, 65, 6),
+      makeRock(650, 60, 85, 6),
+    ],
+    slopes: [makeRamp(100, 470, 170, 435), makeRamp(358, 385, 420, 340),
+             makeRamp(598, 280, 660, 330)],
+    stars: [makeStar(200, 395), makeStar(329, 350), makeStar(455, 300),
+            makeStar(569, 245), makeStar(695, 290), makeStar(569, 185),
+            makeStar(430, 130), makeStar(552, 75), makeStar(692, 25)],
+    portals: [makePortal(40, 400, 1), makePortal(310, 260, 1),
+              makePortal(660, 190, 2), makePortal(420, 70, 2)],
+    crystal: { x: 600, y: 30, r: 11, collected: false },
+    goal: { x: 670, y: 10, w: 60, h: 50 }
+  };
+}
+
 function handcraftedLevel(lvl) {
   if (lvl === 1) return level1();
   if (lvl === 2) return level2();
   if (lvl === 3) return level3();
+  if (lvl === 4) return level4();
+  if (lvl === 5) return level5();
+  if (lvl === 6) return level6();
+  if (lvl === 7) return level7();
+  if (lvl === 8) return level8();
+  if (lvl === 9) return level9();
+  if (lvl === 10) return level10();
   return null;
 }
 
@@ -405,10 +574,17 @@ function beep(freq, duration, type, volume) {
 // Un tema distinto por nivel, todos alegres y con aire "celestial".
 
 const MUSIC_THEMES = {
-  // Prototipo: usa los temas existentes hasta componer los del espacio
-  1: { url: 'musica/cielo-3-altura.ogg', volume: 0.40 },
-  2: { url: 'musica/piso-es-lava-final.ogg', volume: 0.40 },
-  3: { url: 'musica/cielo-3-altura.ogg', volume: 0.44 },
+  // los dos temas propios del ambiente se turnan por nivel
+  1: { url: 'musica/espacio-1-deriva.ogg', volume: 0.4 },
+  2: { url: 'musica/espacio-2-horizonte.ogg', volume: 0.4 },
+  3: { url: 'musica/espacio-1-deriva.ogg', volume: 0.4 },
+  4: { url: 'musica/espacio-2-horizonte.ogg', volume: 0.4 },
+  5: { url: 'musica/espacio-1-deriva.ogg', volume: 0.4 },
+  6: { url: 'musica/espacio-2-horizonte.ogg', volume: 0.4 },
+  7: { url: 'musica/espacio-1-deriva.ogg', volume: 0.4 },
+  8: { url: 'musica/espacio-2-horizonte.ogg', volume: 0.4 },
+  9: { url: 'musica/espacio-1-deriva.ogg', volume: 0.4 },
+  10: { url: 'musica/espacio-2-horizonte.ogg', volume: 0.4 },
   victory: { url: 'musica/cielo-victoria.ogg', volume: 0.5 }
 };
 

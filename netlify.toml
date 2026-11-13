@@ -1,0 +1,47 @@
+# Netlify: sitio estático, sin build.
+# Los .html, musica/ y las imágenes se publican tal cual desde la raíz del repo.
+
+[build]
+  publish = "."
+  command = ""
+
+# Cabeceras de seguridad simples (funcionan en cualquier plan)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+# Los .rbs (canciones ReBirth) se descargan en vez de mostrarse
+[[headers]]
+  for = "/*.rbs"
+  [headers.values]
+    Content-Disposition = "attachment"
+
+# Cache: las canciones e imágenes no cambian a menudo
+[[headers]]
+  for = "/musica/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Los archivos de pruebas no se sirven
+[[redirects]]
+  from = "/test_*.cjs"
+  to = "/"
+  status = 302
+
+[[redirects]]
+  from = "/bot_*.cjs"
+  to = "/"
+  status = 302
+
+[[redirects]]
+  from = "/escalera_*.cjs"
+  to = "/"
+  status = 302

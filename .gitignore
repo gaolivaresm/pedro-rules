@@ -1,0 +1,16 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Netlify
+.netlify/
+
+# node
+node_modules/
+package-lock.json
+
+# Capturas de las pruebas (no son parte del sitio)
+captura-*.png
+
+# Temporales
+*.tmp

@@ -98,7 +98,7 @@ el sitio: `netlify.toml` los redirige a la portada.
 Versión "de nubes" de El Piso es Lava: misma física, otro mundo. **10 niveles.**
 Ábrelo con doble clic o `google-chrome cielo-se-cae.html`.
 
-**Controles:** ← → moverse · ↑ saltar (doble salto) · R reiniciar · M música.
+**Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar · M música.
 En móvil: botones ◀ ▶ y ⤒ (solo aparecen en pantallas táctiles); tocar el tablero también salta.
 
 | Elemento | Qué es |
@@ -174,16 +174,19 @@ Juego HTML5 canvas de un solo archivo (sin dependencias). Ábrelo directamente c
 **Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar (al terminar el juego) · M música on/off.
 En móvil: botones ◀ ▶ y ⤒ en pantalla (aparecen solo en pantallas táctiles); tocar el tablero también salta.
 
-### Toques estilo Stumble Guys
+### Toques estilo Stumble Guys (en los 4 juegos)
 
-Cuatro cosas que acercan el juego a los battle royale de obstáculos que le gustan a los niños:
+Las cuatro mecánicas están en **todos** los juegos, cada una adaptada a su mundo:
 
-| Qué | Cómo funciona |
-|---|---|
-| 🤸 **Tumbo** | Al morir, el personaje sale girando por los aires con ojos mareados: morir da risa, no rabia. |
-| 🏁 **Rival bot** | Un rival corre el mismo nivel con tu misma física. El HUD dice si vas ganando y hay barra de progreso. |
-| 👑 **Corona y personajes** | Los puntos se acumulan entre partidas (guardados en el navegador). A 300/700/1200/1800/2600 puntos se desbloquean 5 personajes (teclas 1-6). Al terminar los 10 niveles se gana una corona. |
-| 🌊 **Modo eliminación** | En los niveles 5 y 10 **la lava sube sola**: compites contra el reloj, no solo contra el mapa. |
+| Qué | Cómo funciona | Lava | Cielo | Selva | Espacio |
+|---|---|---|---|---|---|
+| 🤸 **Tumbo** | Al morir, el personaje sale girando por los aires con ojos mareados | ✅ | ✅ | ✅ | ✅ |
+| 🏁 **Rival bot** | Un rival corre el mismo nivel con tu misma física; el HUD dice quién va delante | ✅ | ✅ | ✅ | ✅ |
+| 👑 **Corona y personajes** | Los puntos se acumulan entre partidas (guardados en el navegador); a 300/700/1200/1800/2600 se desbloquean 5 personajes (teclas 1-6) | ✅ | ✅ | ✅ | ✅ |
+| 🌊 **Modo eliminación** | En los niveles 5 y 10 el peligro sube solo | lava | tormenta | río | vacío |
+
+El progreso se guarda **por juego** (`localStorage`, clave distinta en cada uno), así que
+cada mundo tiene sus propios personajes y coronas.
 
 ### Móvil
 

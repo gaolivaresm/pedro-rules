@@ -683,12 +683,118 @@ function updateParticles() {
   }
 }
 
+// ---------- Tumbo: el cuerpo sale girando al morir (estilo Stumble) ----------
+const ragdolls = [];
+
+function spawnRagdoll(x, y, color) {
+  ragdolls.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 9,
+    vy: -7 - Math.random() * 4,
+    rot: 0,
+    spin: (Math.random() - 0.5) * 0.5,
+    life: 70,
+    color: color || player.color || '#ffffff',
+    w: 24, h: 24
+  });
+}
+
+function updateRagdolls() {
+  for (let i = ragdolls.length - 1; i >= 0; i--) {
+    const r = ragdolls[i];
+    r.x += r.vx;
+    r.y += r.vy;
+    r.vy += 0.45;
+    r.rot += r.spin;
+    r.life--;
+    if (r.life <= 0 || r.y > canvas.height + 60) ragdolls.splice(i, 1);
+  }
+}
+
+function drawRagdolls() {
+  for (const r of ragdolls) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, r.life / 40));
+    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+    ctx.rotate(r.rot);
+    ctx.fillStyle = r.color;
+    ctx.fillRect(-r.w / 2, -r.h / 2, r.w, r.h);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-6, -4, 3, 3);
+    ctx.fillRect(3, -4, 3, 3);
+    ctx.restore();
+  }
+}
+
+// ---------- Personajes y progreso (se guardan en el navegador) ----------
+const SKINS = [
+  { id: 'base',   color: '#ffe9a8', nombre: 'Base',    costo: 0    },
+  { id: 'azul',   color: '#4fc3f7', nombre: 'Azul',    costo: 300  },
+  { id: 'verde',  color: '#7ed957', nombre: 'Verde',   costo: 700  },
+  { id: 'rosa',   color: '#ff7eb6', nombre: 'Rosa',    costo: 1200 },
+  { id: 'violeta',color: '#b58cff', nombre: 'Violeta', costo: 1800 },
+  { id: 'oro',    color: '#ffd166', nombre: 'Oro',     costo: 2600 }
+];
+
+const progreso = { total: 0, coronas: 0, skin: 'base' };
+const PROGRESO_KEY = 'juego.' + (document.title || 'x').replace(/\s+/g, '_') + '.progreso';
+
+function cargarProgreso() {
+  try {
+    const raw = localStorage.getItem(PROGRESO_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (typeof p.total === 'number') progreso.total = p.total;
+      if (typeof p.coronas === 'number') progreso.coronas = p.coronas;
+      if (typeof p.skin === 'string') progreso.skin = p.skin;
+    }
+  } catch (e) {}
+  aplicarSkin();
+}
+
+function guardarProgreso() {
+  try { localStorage.setItem(PROGRESO_KEY, JSON.stringify(progreso)); } catch (e) {}
+}
+
+function skinActual() {
+  return SKINS.find(s => s.id === progreso.skin) || SKINS[0];
+}
+
+function skinDesbloqueada(s) { return progreso.total >= s.costo; }
+
+function aplicarSkin() { player.color = skinActual().color; }
+
+let totalAlEmpezar = 0;
+function sumarProgreso(puntos) {
+  progreso.total += puntos;
+  guardarProgreso();
+}
+
+function elegirSkin(idx) {
+  const s = SKINS[idx];
+  if (!s || !skinDesbloqueada(s)) {
+    msgEl.textContent = '🔒 Aun no la tienes: ' + (s ? s.costo + ' puntos acumulados' : '');
+    msgEl.style.color = '#ff9ec4';
+    setTimeout(() => { msgEl.textContent = ''; }, 1200);
+    return;
+  }
+  progreso.skin = s.id;
+  guardarProgreso();
+  aplicarSkin();
+  msgEl.textContent = '🎨 ' + s.nombre;
+  msgEl.style.color = s.color;
+  setTimeout(() => { msgEl.textContent = ''; }, 900);
+}
+
 // ---------- Estado del nivel ----------
 
 function loadLevel(lvl) {
   data = getLevelData(lvl);
   particles.length = 0;
+  ragdolls.length = 0;
   resetPosition();
+  resetRival();
+  iniciarMarea();
 }
 
 function resetPosition() {
@@ -749,6 +855,194 @@ function closestPointOnSegment(px, py, x1, y1, x2, y2) {
 }
 
 
+// ---------- Rival bot (misma fisica, controlado por la maquina) ----------
+const rival = {
+  active: false, x: 0, y: 0, w: 24, h: 24,
+  vx: 0, vy: 0, onGround: false, jumpsLeft: MAX_JUMPS,
+  coyote: 0, color: '#7ed957', finished: false,
+  finishFrame: 0, stuck: 0, lastX: 0, best: 0
+};
+
+function resetRival() {
+  rival.active = true;
+  rival.x = player.x + 34;
+  rival.y = player.y - 6;
+  rival.vx = 0; rival.vy = 0;
+  rival.onGround = false;
+  rival.jumpsLeft = MAX_JUMPS;
+  rival.finished = false;
+  rival.finishFrame = 0;
+  rival.stuck = 0;
+  rival.lastX = rival.x;
+  rival.best = rival.x;
+}
+
+function updateRival() {
+  if (!rival.active || rival.finished) return;
+
+  const goalX = data.goal.x + data.goal.w / 2;
+  const cx = rival.x + rival.w / 2;
+  const dirRight = goalX > cx;
+
+  if (dirRight) rival.vx += MOVE_ACCEL;
+  else rival.vx -= MOVE_ACCEL;
+  rival.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, rival.vx));
+  rival.vx *= FRICTION;
+  if (Math.abs(rival.vx) < 0.05) rival.vx = 0;
+
+  if (rival.onGround) rival.coyote = COYOTE_FRAMES;
+  else if (rival.coyote > 0) rival.coyote--;
+
+  const feet = rival.y + rival.h;
+  let wantJump = false;
+  if (rival.onGround) {
+    const probeX = dirRight ? rival.x + rival.w + 8 : rival.x - 8;
+    const probeY = feet + 2;
+    const haySuelo = data.platforms.some(p =>
+      !p.broken && probeX > p.x && probeX < p.x + p.w &&
+      probeY >= p.y - 6 && probeY <= p.y + 14) ||
+      data.slopes.some(s => {
+        const c = closestPointOnSegment(probeX, probeY, s.x1, s.y1, s.x2, s.y2);
+        return Math.hypot(probeX - c.x, probeY - c.y) < 18;
+      });
+    if (!haySuelo) wantJump = true;
+
+    const g = data.goal;
+    if (rival.x + rival.w > g.x && rival.x < g.x + g.w && feet > g.y + g.h) wantJump = true;
+    if (rival.stuck > 20) wantJump = true;
+  } else {
+    if (rival.jumpsLeft > 0 && rival.vy > 1.5) wantJump = true;
+  }
+
+  if (wantJump && rival.jumpsLeft > 0) {
+    rival.vy = rival.onGround ? -JUMP_POWER : -(JUMP_POWER * 0.92);
+    rival.onGround = false;
+    rival.coyote = 0;
+    rival.jumpsLeft--;
+  }
+
+  rival.vy += (typeof gravityAt === 'function' ? gravityAt(rival.y) : GRAVITY);
+  rival.x += rival.vx;
+  rival.y += rival.vy;
+  rival.onGround = false;
+
+  for (const p of data.platforms) {
+    if (p.broken) continue;
+    const feetY = rival.y + rival.h;
+    const prevFeetY = feetY - rival.vy;
+    if (rival.x + rival.w > p.x && rival.x < p.x + p.w &&
+        prevFeetY <= p.y + COYOTE_TOLERANCE && feetY >= p.y && rival.vy >= 0) {
+      rival.y = p.y - rival.h;
+      if (p.thin && !p.broken && p.crack === 0) p.crack = 22;
+      rival.vy = 0;
+      rival.onGround = true;
+      rival.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  for (const s of data.slopes) {
+    const fx = rival.x + rival.w / 2, fy = rival.y + rival.h;
+    const c = closestPointOnSegment(fx, fy, s.x1, s.y1, s.x2, s.y2);
+    if (Math.hypot(fx - c.x, fy - c.y) < 14 && rival.vy >= 0 && fy <= c.y + 16) {
+      rival.y = c.y - rival.h;
+      rival.vy = 0;
+      rival.onGround = true;
+      rival.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  if (rival.x < 0) rival.x = 0;
+  if (rival.x + rival.w > canvas.width) rival.x = canvas.width - rival.w;
+
+  if (rival.x > rival.best + 1) rival.best = rival.x;
+  if (Math.abs(rival.x - rival.lastX) > 1.2) { rival.stuck = 0; rival.lastX = rival.x; }
+  else rival.stuck++;
+
+  if (rival.y > canvas.height + 40) {
+    rival.x = Math.max(20, player.x - 60);
+    rival.y = 300; rival.vx = 0; rival.vy = 0; rival.stuck = 0;
+  }
+  if (rival.stuck > 260) {
+    rival.x = Math.min(goalX - 40, rival.best + 70);
+    rival.y = 120; rival.vx = 0; rival.vy = 0; rival.stuck = 0;
+  }
+
+  const g = data.goal;
+  const cercaX = rival.x + rival.w > g.x - 40 && rival.x < g.x + g.w + 40;
+  const cercaY = Math.abs((rival.y + rival.h) - (g.y + g.h)) < 110;
+  if (rectsCollide(rival.x, rival.y, rival.w, rival.h, g.x, g.y, g.w, g.h) ||
+      (cercaX && cercaY)) {
+    rival.finished = true;
+    rival.finishFrame = frame;
+  }
+}
+
+function drawRival() {
+  if (!rival.active) return;
+  ctx.save();
+  if (!rival.onGround) { ctx.shadowColor = 'rgba(199, 138, 75, 0.9)'; ctx.shadowBlur = 10; }
+  ctx.fillStyle = rival.color;
+  ctx.fillRect(rival.x, rival.y, rival.w, rival.h);
+  ctx.restore();
+  const look = rival.vx > 0.5 ? 4 : (rival.vx < -0.5 ? 1 : 3);
+  ctx.fillStyle = '#2a1a10';
+  ctx.fillRect(rival.x + look, rival.y + 7, 3, 4);
+  ctx.fillRect(rival.x + look + 6, rival.y + 7, 3, 4);
+  ctx.fillStyle = 'rgba(230, 190, 150, 0.9)';
+  ctx.font = '10px sans-serif';
+  ctx.fillText('RIVAL', rival.x + 2, rival.y - 6);
+}
+
+// ---------- Modo eliminacion: el peligro sube solo ----------
+const marea = {
+  activa: false, y: 0, velocidad: 0.25,
+  nombre: 'EL VACIO SUBE',
+  c1: 'rgba(220, 190, 255, 0.75)', c2: 'rgba(120, 90, 220, 0.85)', c3: 'rgba(20, 10, 50, 0.98)'
+};
+
+function iniciarMarea() {
+  marea.activa = (level >= MAX_LEVEL || level === 5);
+  marea.y = canvas.height;
+  marea.velocidad = 0.18 + level * 0.012;
+}
+
+function updateMarea() {
+  if (!marea.activa) return;
+  marea.y -= marea.velocidad;
+  if (player.y + player.h > marea.y - 90 && frame % 40 === 0) {
+    beep(220, 0.08, 'sawtooth', 0.02);
+  }
+  if (player.y + player.h > marea.y) {
+    die('Te alcanzo! Corre mas rapido...');
+    marea.y = canvas.height;
+  }
+}
+
+function drawMarea() {
+  if (!marea.activa) return;
+  const alto = canvas.height - marea.y;
+  if (alto <= 0) return;
+  const g = ctx.createLinearGradient(0, marea.y, 0, canvas.height);
+  g.addColorStop(0, marea.c1);
+  g.addColorStop(0.4, marea.c2);
+  g.addColorStop(1, marea.c3);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, marea.y, canvas.width, alto);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.beginPath();
+  ctx.moveTo(0, marea.y);
+  for (let x = 0; x <= canvas.width; x += 16) {
+    ctx.lineTo(x, marea.y + Math.sin((x + frame * 3) * 0.03) * 4);
+  }
+  ctx.lineTo(canvas.width, marea.y + 10);
+  ctx.lineTo(0, marea.y + 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText('\uD83C\uDF0A ' + marea.nombre, canvas.width / 2 - 60, 20);
+}
+
 // ---------- Lógica principal ----------
 
 // Las nubes se mecen despacio; al pisarlas se hunden un poco
@@ -770,6 +1064,9 @@ function updateClouds() {
 
 function update() {
   frame++;
+  updateRagdolls();
+  updateRival();
+  updateMarea();
   if (player.frozen) {
     updateClouds();
     updateParticles();
@@ -898,6 +1195,7 @@ function die(reason) {
   msgEl.textContent = reason || '🌑 ¡Te perdiste en el vacío! Vuelves al inicio...';
   msgEl.style.color = '#ff9ec4';
   flashUntil = frame + 16;
+  spawnRagdoll(player.x, player.y, player.color);
   beep(300, 0.35, 'sine', 0.05);
   setTimeout(() => beep(200, 0.3, 'sine', 0.04), 120);
   spawnParticles(player.x + player.w / 2,
@@ -919,6 +1217,8 @@ function win() {
     setTimeout(() => beep(880, 0.15, 'sine', 0.07), 160);
     setTimeout(() => beep(1180, 0.35, 'sine', 0.07), 320);
     playVictoryJingle();
+    progreso.coronas++;
+    sumarProgreso(score);
     msgEl.textContent = '🏆 ¡Cruzaste las ' + MAX_LEVEL + ' orbitas con ' + score + ' puntos! Presiona R para jugar otra vez.';
   } else {
     beep(700, 0.1, 'sine', 0.06);
@@ -953,6 +1253,7 @@ function restartGame() {
 document.addEventListener('keydown', e => {
   if ((e.key === 'r' || e.key === 'R') && !running) restartGame();
   if (e.key === 'm' || e.key === 'M') toggleMusic();
+  if (e.key >= '1' && e.key <= '6') elegirSkin(parseInt(e.key, 10) - 1);
 });
 
 
@@ -1219,6 +1520,27 @@ function drawHUD() {
   ctx.font = '16px sans-serif';
   ctx.fillText('Orbita: ' + level + ' / ' + MAX_LEVEL, 10, 20);
   ctx.fillText('Puntos: ' + score, 10, 40);
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = skinActual().color;
+  ctx.fillText('\uD83D\uDC51 ' + progreso.coronas + '  \u00b7  \u2b50 ' + progreso.total + ' acumulados', 10, 58);
+  if (rival.active) {
+    const gx = data.goal.x + data.goal.w / 2;
+    const mi = player.x + player.w / 2, su = rival.x + rival.w / 2;
+    let txt, col;
+    if (rival.finished && rival.finishFrame <= frame) { txt = 'Rival primero'; col = '#ff9ec4'; }
+    else if (Math.abs(mi - su) < 24) { txt = 'Rueda a rueda'; col = '#ffd166'; }
+    else if (mi > su) { txt = 'Vas ganando'; col = '#9ff5b8'; }
+    else { txt = 'Rival delante'; col = '#ff9ec4'; }
+    ctx.fillStyle = col;
+    ctx.fillText(txt, canvas.width - 165, 40);
+    const bw = 140, bx = canvas.width - 165, by = 48;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(bx, by, bw, 6);
+    ctx.fillStyle = '#ffe680';
+    ctx.fillRect(bx, by, Math.max(0, Math.min(1, mi / gx)) * bw, 6);
+    ctx.fillStyle = rival.color;
+    ctx.fillRect(bx, by, Math.max(0, Math.min(1, su / gx)) * bw, 2);
+  }
 
   const total = data.stars.length;
   const got = data.stars.filter(c => c.collected).length;
@@ -1240,8 +1562,11 @@ function draw() {
   }
   for (const c of data.stars) drawStar(c);
   drawCrystal(data.crystal);
+  drawMarea();
   drawGoal(data.goal);
+  drawRival();
   drawPlayer();
+  drawRagdolls();
   drawParticles();
   drawHUD();
 
@@ -1258,6 +1583,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+cargarProgreso();
 loadLevel(level);
 initTouchControls();
 initMusic();

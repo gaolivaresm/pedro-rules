@@ -141,7 +141,8 @@
 
 <div id="ui">
   <h2>🌋 El Piso es Lava 🌋</h2>
-  <p>← → moverte · ↑ saltar (doble salto) · 🪙 monedas (+10) · ⚠️ celdas trampa · 🟥 lava móvil · 💎 gema (+50)</p>
+  <p>← → moverte · ↑ saltar (doble salto) · 🪙 monedas (+10) · 💎 gema (+50) · 🏁 corre contra el rival · 🌊 en algunos niveles la lava sube</p>
+  <p style="font-size:12px;color:#ffb066">1-6 elige personaje (se desbloquean con puntos) · R reinicia · M música</p>
 </div>
 
 <canvas id="game" width="800" height="500"></canvas>
@@ -396,7 +397,11 @@ function generatedLevel(lvl) {
   const movingLava = [];
 
   const numPlatforms = 5 + lvl;              // más plataformas por nivel
-  const vStep = Math.max(55, 105 - lvl * 3); // saltos algo más ajustados en niveles altos
+  const TOP = 60;                            // techo jugable del nivel
+  // La subida total se reparte para que NINGUNA plataforma quede pegada al techo
+  // (antes se acotaban todas a y=60 y se apilaban unas sobre otras)
+  const ascensoTotal = Math.max(60, Math.min(340, 105 * lvl / 2));
+  const vStep = Math.max(34, Math.min(90, ascensoTotal / Math.max(1, numPlatforms - 1)));
   const pWidth = Math.max(65, 130 - lvl * 5);
 
   let curX = 250;
@@ -406,9 +411,18 @@ function generatedLevel(lvl) {
 
   for (let i = 1; i < numPlatforms; i++) {
     // En niveles altos el salto vertical puede ser irregular
-    const jitter = lvl >= 5 ? Math.floor(rnd() * 16) : 0;
-    curY -= Math.max(45, vStep - jitter);
-    if (curY < 60) curY = 60;
+    const jitter = lvl >= 5 ? Math.floor(rnd() * 10) : 0;
+    curY -= Math.max(30, vStep - jitter);
+    // nunca por encima del techo: si se agota el espacio, la plataforma
+    // se queda en el ultimo hueco libre (no se apila encima de otra)
+    if (curY < TOP) curY = TOP;
+    // si el hueco libre ya esta ocupado por otra plataforma, bajamos esta
+    // para que siempre quede un salto claro entre una y la siguiente
+    let guard = 0;
+    while (platforms.some(p => Math.abs(p.y - curY) < 24) && guard < 40) {
+      curY += 26;
+      guard++;
+    }
     const horizontalJump = 105 + Math.floor(rnd() * (25 + lvl * 4));
     let targetX = dir === 1
       ? Math.min(720 - pWidth, curX + horizontalJump)
@@ -436,8 +450,11 @@ function generatedLevel(lvl) {
     curX = targetX;
   }
 
-  const last = platforms[platforms.length - 1];
-  const goal = {x: Math.min(730, last.x + pWidth / 2 - 30), y: Math.max(10, last.y - 70), w: 60, h: 50};
+  // La meta va sobre la plataforma MAS ALTA (no sobre la ultima del array:
+  // con el generador actual la ultima puede haber quedado abajo).
+  const masAlta = platforms.slice().sort((a, b) => a.y - b.y)[0];
+  const goal = {x: Math.min(730, Math.max(10, masAlta.x + masAlta.w / 2 - 30)),
+                y: Math.max(10, masAlta.y - 70), w: 60, h: 50};
   const gem = lvl >= 5 ? { x: goal.x + 30, y: Math.max(8, goal.y - 26), r: 9, collected: false } : null;
 
   return {platforms, slopes, coins, traps, movingLava, gem, goal};
@@ -451,7 +468,10 @@ function getLevelData(lvl) {
 function loadLevel(lvl) {
   data = getLevelData(lvl);
   particles.length = 0;
+  ragdolls.length = 0;
   resetPosition();
+  resetRival();          // el rival sale a correr en cada nivel
+  iniciarMarea();        // en algunos niveles la lava sube sola
 }
 
 function resetPosition() {
@@ -625,8 +645,186 @@ function updateMovingLava() {
 
 // ---------- Lógica principal ----------
 
+// ---------- Rival bot (misma física, controlado por la máquina) ----------
+// Usa las mismas constantes y funciones de colisión que el jugador, para que la
+// carrera sea justa. Es independiente: si falla, nunca afecta al jugador.
+const rival = {
+  active: false, x: 0, y: 0, w: 24, h: 24,
+  vx: 0, vy: 0, onGround: false, jumpsLeft: MAX_JUMPS,
+  coyote: 0, color: '#8f6bff', finished: false,
+  finishFrame: 0, stuck: 0, lastX: 0, best: 0, aimX: null
+};
+
+function resetRival() {
+  rival.active = true;
+  rival.x = player.x + 34;          // arranca al lado, un poco atrás
+  rival.y = player.y - 6;
+  rival.vx = 0; rival.vy = 0;
+  rival.onGround = false;
+  rival.jumpsLeft = MAX_JUMPS;
+  rival.coyote = 0;
+  rival.finished = false;
+  rival.finishFrame = 0;
+  rival.stuck = 0;
+  rival.lastX = rival.x;
+  rival.best = rival.x;
+  rival.aimX = null;
+}
+
+// IA del rival: simple y robusta. Avanza hacia la meta, salta cuando se le
+// acaba el suelo delante, y si se queda atascado mucho rato se "reengancha"
+// un poco mas adelante (los bots de relleno de este tipo de juegos hacen eso).
+function rivalTarget() {
+  return { x: data.goal.x + data.goal.w / 2 };
+}
+
+function updateRival() {
+  if (!rival.active || rival.finished) return;
+
+  const goalX = data.goal.x + data.goal.w / 2;
+  const cx = rival.x + rival.w / 2;
+  const dirRight = goalX > cx;
+
+  if (dirRight) rival.vx += MOVE_ACCEL;
+  else rival.vx -= MOVE_ACCEL;
+  rival.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, rival.vx));
+  rival.vx *= FRICTION;
+  if (Math.abs(rival.vx) < 0.05) rival.vx = 0;
+
+  if (rival.onGround) rival.coyote = COYOTE_FRAMES;
+  else if (rival.coyote > 0) rival.coyote--;
+
+  // --- decidir si salta ---
+  const feet = rival.y + rival.h;
+  const under = data.platforms.find(p =>
+    rival.x + rival.w > p.x && rival.x < p.x + p.w &&
+    feet >= p.y - 8 && feet <= p.y + 10);
+
+  let wantJump = false;
+  if (rival.onGround) {
+    // ¿hay suelo justo delante? si no, saltar
+    const probeX = dirRight ? rival.x + rival.w + 8 : rival.x - 8;
+    const probeY = feet + 2;
+    const haySueloDelante = data.platforms.some(p =>
+      probeX > p.x && probeX < p.x + p.w &&
+      probeY >= p.y - 6 && probeY <= p.y + 14) ||
+      data.slopes.some(s => {
+        const c = closestPointOnSegment(probeX, probeY, s.x1, s.y1, s.x2, s.y2);
+        return Math.hypot(probeX - c.x, probeY - c.y) < 18;
+      });
+    if (!haySueloDelante) wantJump = true;
+
+    // si esta debajo de la meta, saltar a por ella
+    const g = data.goal;
+    if (rival.x + rival.w > g.x && rival.x < g.x + g.w && feet > g.y + g.h) wantJump = true;
+
+    // si lleva atascado, insistir con salto
+    if (rival.stuck > 20) wantJump = true;
+  } else {
+    // doble salto si aun le queda y empieza a caer
+    if (rival.jumpsLeft > 0 && rival.vy > 1.5) wantJump = true;
+  }
+
+  if (wantJump && rival.jumpsLeft > 0) {
+    rival.vy = rival.onGround ? -JUMP_POWER : -(JUMP_POWER * 0.92);
+    rival.onGround = false;
+    rival.coyote = 0;
+    rival.jumpsLeft--;
+  }
+
+  rival.vy += GRAVITY;
+  rival.x += rival.vx;
+  rival.y += rival.vy;
+  rival.onGround = false;
+
+  for (const p of data.platforms) {
+    const feetY = rival.y + rival.h;
+    const prevFeetY = feetY - rival.vy;
+    if (rival.x + rival.w > p.x && rival.x < p.x + p.w &&
+        prevFeetY <= p.y + COYOTE_TOLERANCE && feetY >= p.y && rival.vy >= 0) {
+      rival.y = p.y - rival.h;
+      rival.vy = 0;
+      rival.onGround = true;
+      rival.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  for (const s of data.slopes) {
+    const fx = rival.x + rival.w / 2;
+    const fy = rival.y + rival.h;
+    const c = closestPointOnSegment(fx, fy, s.x1, s.y1, s.x2, s.y2);
+    if (Math.hypot(fx - c.x, fy - c.y) < 14 && rival.vy >= 0 && fy <= c.y + 16) {
+      rival.y = c.y - rival.h;
+      rival.vy = 0;
+      rival.onGround = true;
+      rival.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  if (rival.x < 0) rival.x = 0;
+  if (rival.x + rival.w > canvas.width) rival.x = canvas.width - rival.w;
+
+  // progreso y atasco
+  if (rival.x > rival.best + 1) rival.best = rival.x;
+  if (Math.abs(rival.x - rival.lastX) > 1.2) { rival.stuck = 0; rival.lastX = rival.x; }
+  else rival.stuck++;
+
+  // se cayo al vacio: vuelve un poco por detras del jugador, no al principio
+  if (rival.y > canvas.height + 40) {
+    rival.x = Math.max(20, player.x - 60);
+    rival.y = 300;
+    rival.vx = 0;
+    rival.vy = 0;
+    rival.stuck = 0;
+  }
+
+  // atascado demasiado: se reengancha un poco mas cerca de la meta
+  if (rival.stuck > 260) {
+    rival.x = Math.min(goalX - 40, rival.best + 70);
+    rival.y = 120;
+    rival.vx = 0;
+    rival.vy = 0;
+    rival.stuck = 0;
+  }
+
+  // meta: vale tocarla o estar muy cerca (los bots de relleno de este tipo de
+  // juegos no son perfectos; lo importante es que la carrera tenga sentido)
+  const g = data.goal;
+  const cercaX = rival.x + rival.w > g.x - 40 && rival.x < g.x + g.w + 40;
+  const cercaY = Math.abs((rival.y + rival.h) - (g.y + g.h)) < 110;
+  if (rectsCollide(rival.x, rival.y, rival.w, rival.h, g.x, g.y, g.w, g.h) ||
+      (cercaX && cercaY)) {
+    rival.finished = true;
+    rival.finishFrame = frame;
+  }
+}
+
+function drawRival() {
+  if (!rival.active) return;
+  ctx.save();
+  if (!rival.onGround) {
+    ctx.shadowColor = 'rgba(150, 120, 255, 0.85)';
+    ctx.shadowBlur = 10;
+  }
+  ctx.fillStyle = rival.color;
+  ctx.fillRect(rival.x, rival.y, rival.w, rival.h);
+  ctx.restore();
+  // ojos
+  const look = rival.vx > 0.5 ? 4 : (rival.vx < -0.5 ? 1 : 3);
+  ctx.fillStyle = '#1a1030';
+  ctx.fillRect(rival.x + look, rival.y + 7, 3, 4);
+  ctx.fillRect(rival.x + look + 6, rival.y + 7, 3, 4);
+  // etiqueta "RIVAL"
+  ctx.fillStyle = 'rgba(190, 170, 255, 0.9)';
+  ctx.font = '10px sans-serif';
+  ctx.fillText('RIVAL', rival.x + 2, rival.y - 6);
+}
+
 function update() {
   frame++;
+  updateRagdolls();
+  updateRival();          // la carrera sigue aunque el jugador este quieto
+  updateMarea();          // la lava que sube solo
   if (player.frozen) {
     updateMovingLava();
     updateParticles();
@@ -744,13 +942,15 @@ function update() {
     }
   }
 
-  if (player.y > canvas.height) {
-    die('🔥 ¡Te quemaste con la lava! Reiniciando...');
+  // Trampas y lava primero, pero la meta se comprueba ANTES de la caida:
+  // si estas tocando la meta, has ganado aunque estes cayendo.
+  if (rectsCollide(player.x, player.y, player.w, player.h, data.goal.x, data.goal.y, data.goal.w, data.goal.h)) {
+    win();
     return;
   }
 
-  if (rectsCollide(player.x, player.y, player.w, player.h, data.goal.x, data.goal.y, data.goal.w, data.goal.h)) {
-    win();
+  if (player.y > canvas.height) {
+    die('🔥 ¡Te quemaste con la lava! Reiniciando...');
     return;
   }
 
@@ -774,11 +974,200 @@ function trapHit() {
   }, TRAP_FREEZE_MS);
 }
 
+// ---------- Modo eliminacion: la lava sube sola ----------
+// En los niveles marcados como "ascenso", una marea de lava sube desde abajo.
+// Si te alcanza, estas fuera. Compites contra el reloj, no solo contra el mapa.
+const marea = {
+  activa: false,
+  y: canvas.height,       // donde esta la superficie de lava
+  velocidad: 0.25,        // px por frame
+  aviso: 0
+};
+
+function iniciarMarea() {
+  // Sube en todo el nivel 10 y en el 5 como "sorpresa"
+  marea.activa = (level >= MAX_LEVEL || level === 5);
+  marea.y = canvas.height;
+  marea.velocidad = 0.18 + level * 0.012;
+  marea.aviso = 0;
+}
+
+function updateMarea() {
+  if (!marea.activa) return;
+  marea.y -= marea.velocidad;
+  // aviso sonoro cuando esta cerca
+  if (player.y + player.h > marea.y - 90 && frame % 40 === 0) {
+    beep(220, 0.08, 'sawtooth', 0.02);
+  }
+  // ¿te alcanzo?
+  if (player.y + player.h > marea.y) {
+    die('🌊 ¡Te alcanzó la lava! Corre más rápido...');
+    marea.y = canvas.height;      // se reinicia con el nivel
+    return;
+  }
+}
+
+function drawMarea() {
+  if (!marea.activa) return;
+  const alto = canvas.height - marea.y;
+  if (alto <= 0) return;
+  // cuerpo de lava
+  const g = ctx.createLinearGradient(0, marea.y, 0, canvas.height);
+  g.addColorStop(0, 'rgba(255, 210, 60, 0.95)');
+  g.addColorStop(0.25, 'rgba(255, 90, 0, 0.95)');
+  g.addColorStop(1, 'rgba(140, 10, 0, 0.98)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, marea.y, canvas.width, alto);
+  // borde ondulado
+  ctx.fillStyle = 'rgba(255, 240, 140, 0.95)';
+  ctx.beginPath();
+  ctx.moveTo(0, marea.y);
+  for (let x = 0; x <= canvas.width; x += 16) {
+    ctx.lineTo(x, marea.y + Math.sin((x + frame * 3) * 0.03) * 4);
+  }
+  ctx.lineTo(canvas.width, marea.y + 10);
+  ctx.lineTo(0, marea.y + 10);
+  ctx.closePath();
+  ctx.fill();
+  // aviso en el HUD
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText('🌊 LA LAVA SUBE', canvas.width / 2 - 60, 20);
+}
+// ---------- Corona y personajes (progreso guardado en el navegador) ----------
+// Los puntos se acumulan entre partidas: a ciertos umbrales se desbloquean
+// personajes, y al terminar los 10 niveles se gana la corona.
+const SKINS = [
+  { id: 'yellow', color: '#ffcc00', nombre: 'Chispa',  costo: 0   },
+  { id: 'blue',   color: '#4fc3f7', nombre: 'Ola',     costo: 300 },
+  { id: 'green',  color: '#7ed957', nombre: 'Brote',   costo: 700 },
+  { id: 'pink',   color: '#ff7eb6', nombre: 'Chicle',  costo: 1200 },
+  { id: 'purple', color: '#b58cff', nombre: 'Neblina', costo: 1800 },
+  { id: 'gold',   color: '#ffd166', nombre: 'Corona',  costo: 2600 }
+];
+
+const progreso = {
+  total: 0,          // puntos acumulados de todas las partidas
+  coronas: 0,        // veces que se completaron los 10 niveles
+  skin: 'yellow'
+};
+
+const PROGRESO_KEY = 'pisoEsLava.progreso';
+
+function cargarProgreso() {
+  try {
+    const raw = localStorage.getItem(PROGRESO_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (typeof p.total === 'number') progreso.total = p.total;
+      if (typeof p.coronas === 'number') progreso.coronas = p.coronas;
+      if (typeof p.skin === 'string') progreso.skin = p.skin;
+    }
+  } catch (e) { /* sin localStorage: se juega igual, solo no se guarda */ }
+  aplicarSkin();
+}
+
+function guardarProgreso() {
+  try {
+    localStorage.setItem(PROGRESO_KEY, JSON.stringify(progreso));
+  } catch (e) { /* idem */ }
+}
+
+function skinActual() {
+  return SKINS.find(s => s.id === progreso.skin) || SKINS[0];
+}
+
+function skinDesbloqueada(s) {
+  return progreso.total >= s.costo;
+}
+
+function aplicarSkin() {
+  const s = skinActual();
+  player.color = s.color;
+}
+
+// Cambiar de personaje con las teclas 1..6 (solo las desbloqueadas)
+function elegirSkin(idx) {
+  const s = SKINS[idx];
+  if (!s || !skinDesbloqueada(s)) {
+    msgEl.textContent = '🔒 Aun no la tienes: ' + (s ? s.costo + ' puntos acumulados' : '');
+    msgEl.style.color = '#ff9ec4';
+    setTimeout(() => { msgEl.textContent = ''; }, 1200);
+    return;
+  }
+  progreso.skin = s.id;
+  guardarProgreso();
+  aplicarSkin();
+  msgEl.textContent = '🎨 ' + s.nombre;
+  msgEl.style.color = s.color;
+  setTimeout(() => { msgEl.textContent = ''; }, 900);
+}
+
+// Al sumar puntos se guarda el progreso (y se avisa si se desbloquea algo)
+let totalAlEmpezar = 0;
+function sumarProgreso(puntos) {
+  progreso.total += puntos;
+  const nuevos = SKINS.filter(s => s.costo > 0 && s.costo <= progreso.total && s.costo > totalAlEmpezar);
+  if (nuevos.length) {
+    const s = nuevos[nuevos.length - 1];
+    beep(1180, 0.12, 'triangle', 0.06);
+    setTimeout(() => beep(1560, 0.2, 'triangle', 0.06), 130);
+    msgEl.textContent = '✨ ¡Desbloqueaste a ' + s.nombre + '! Pulsa ' + (SKINS.indexOf(s) + 1);
+    msgEl.style.color = s.color;
+  }
+  guardarProgreso();
+}
+// ---------- Tumbo: el cuerpo sale girando al morir (estilo Stumble) ----------
+// No toca la física del jugador: es solo un dibujo con su propia inercia.
+const ragdolls = [];
+
+function spawnRagdoll(x, y, color) {
+  ragdolls.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 9,
+    vy: -7 - Math.random() * 4,
+    rot: 0,
+    spin: (Math.random() - 0.5) * 0.5,
+    life: 70,
+    color: color || player.color,
+    w: 24, h: 24
+  });
+}
+
+function updateRagdolls() {
+  for (let i = ragdolls.length - 1; i >= 0; i--) {
+    const r = ragdolls[i];
+    r.x += r.vx;
+    r.y += r.vy;
+    r.vy += 0.45;
+    r.rot += r.spin;
+    r.life--;
+    if (r.life <= 0 || r.y > canvas.height + 60) ragdolls.splice(i, 1);
+  }
+}
+
+function drawRagdolls() {
+  for (const r of ragdolls) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, r.life / 40));
+    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+    ctx.rotate(r.rot);
+    ctx.fillStyle = r.color;
+    ctx.fillRect(-r.w / 2, -r.h / 2, r.w, r.h);
+    // ojos mareados
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-6, -4, 3, 3);
+    ctx.fillRect(3, -4, 3, 3);
+    ctx.restore();
+  }
+}
+
 function die(reason) {
   msgEl.textContent = reason || '🔥 ¡Te quemaste con la lava! Reiniciando...';
   msgEl.style.color = '#ff5555';
   flashUntil = frame + 16;
   beep(120, 0.3, 'sawtooth', 0.06);
+  spawnRagdoll(player.x, player.y, player.frozen ? '#ff88ff' : player.color);
   spawnParticles(player.x + player.w / 2,
                  Math.min(player.y + player.h / 2, canvas.height - 10),
                  '#ff6600', 14, 5);
@@ -793,16 +1182,23 @@ function win() {
   running = false;
   player.vx = 0;
   player.vy = 0;
+  // ¿le ganamos al rival?
+  const leGanamos = !rival.finished || rival.finishFrame > frame;
+  const carrera = leGanamos ? '🥇 ¡Ganaste la carrera! ' : '🥈 El rival llegó antes. ';
   if (level >= MAX_LEVEL) {
     beep(660, 0.15, 'triangle', 0.07);
     setTimeout(() => beep(990, 0.3, 'triangle', 0.07), 160);
     playVictoryJingle();   // fanfarria de ReBirth al completar los 10 niveles
-    msgEl.textContent = '🏆 ¡Completaste los ' + MAX_LEVEL + ' niveles con ' + score + ' puntos! Presiona R para reiniciar.';
+    progreso.coronas++;
+    sumarProgreso(score);
+    msgEl.textContent = carrera + '👑 ¡Corona! Completaste los ' + MAX_LEVEL +
+      ' niveles con ' + score + ' puntos (llevas ' + progreso.coronas +
+      ' corona' + (progreso.coronas === 1 ? '' : 's') + '). Pulsa R.';
   } else {
     beep(700, 0.1, 'triangle', 0.06);
     setTimeout(() => beep(1050, 0.16, 'triangle', 0.06), 110);
     const nextLevel = level + 1;
-    msgEl.textContent = '✅ ¡Nivel ' + level + ' superado! Cargando nivel ' + nextLevel + '...';
+    msgEl.textContent = carrera + '✅ ¡Nivel ' + level + ' superado! Cargando nivel ' + nextLevel + '...';
     setTimeout(() => {
       level = nextLevel;
       loadLevel(level);
@@ -832,6 +1228,8 @@ function restartGame() {
 document.addEventListener('keydown', e => {
   if ((e.key === 'r' || e.key === 'R') && !running) restartGame();
   if (e.key === 'm' || e.key === 'M') toggleMusic();
+  // 1..6: elegir personaje (solo los desbloqueados)
+  if (e.key >= '1' && e.key <= '6') elegirSkin(parseInt(e.key, 10) - 1);
 });
 
 // ---------- Dibujo ----------
@@ -982,12 +1380,49 @@ function drawHUD() {
   ctx.font = '16px sans-serif';
   ctx.fillText('Nivel: ' + level + ' / ' + MAX_LEVEL, 10, 20);
   ctx.fillText('Puntos: ' + score, 10, 40);
+  // progreso acumulado (lo que desbloquea personajes)
+  const sk = skinActual();
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = sk.color;
+  ctx.fillText('👑 ' + progreso.coronas + '  ·  ⭐ ' + progreso.total + ' acumulados', 10, 58);
 
   const total = data.coins.length;
   const got = data.coins.filter(c => c.collected).length;
   ctx.font = '14px sans-serif';
   ctx.fillStyle = '#ffdd33';
   ctx.fillText('🪙 ' + got + ' / ' + total, canvas.width - 90, 20);
+
+  // marcador de la carrera: quien va delante
+  if (rival.active) {
+    const goalX = data.goal.x + data.goal.w / 2;
+    const miX = player.x + player.w / 2;
+    const suX = rival.x + rival.w / 2;
+    let texto, color;
+    if (rival.finished && rival.finishFrame <= frame) {
+      texto = '🥈 Rival llegó primero';
+      color = '#ff9ec4';
+    } else if (Math.abs(miX - suX) < 24) {
+      texto = '⚔️ ¡Rueda a rueda!';
+      color = '#ffd166';
+    } else if (miX > suX) {
+      texto = '🥇 Vas ganando';
+      color = '#9ff5b8';
+    } else {
+      texto = '🏃 El rival va delante';
+      color = '#ff9ec4';
+    }
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = color;
+    ctx.fillText(texto, canvas.width - 160, 40);
+    // mini barra de progreso
+    const barraW = 140, barraH = 6, bx = canvas.width - 160, by = 48;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(bx, by, barraW, barraH);
+    ctx.fillStyle = '#ffe680';
+    ctx.fillRect(bx, by, Math.max(0, Math.min(1, miX / goalX)) * barraW, barraH);
+    ctx.fillStyle = rival.color;
+    ctx.fillRect(bx, by, Math.max(0, Math.min(1, suX / goalX)) * barraW, 2);
+  }
 }
 
 function draw() {
@@ -998,8 +1433,11 @@ function draw() {
   drawGem(data.gem);
   for (const t of data.traps) drawTrap(t);
   for (const l of data.movingLava || []) drawMovingLava(l);
+  drawMarea();
   drawGoal(data.goal);
+  drawRival();
   drawPlayer();
+  drawRagdolls();
   drawParticles();
   drawHUD();
 
@@ -1017,6 +1455,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+cargarProgreso();      // puntos y personajes guardados de partidas anteriores
 loadLevel(level);
 initTouchControls();
 initMusic();

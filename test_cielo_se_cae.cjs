@@ -86,9 +86,10 @@ function serve() {
         levels.every(x => x.clouds > 0 && x.bridges > 0),
         levels.map(x => `${x.l}: ${x.clouds}n/${x.bridges}p`));
 
-  // 3. El jugador aterriza en la primera nube
+  // 3. El jugador aterriza en la primera nube (esperamos a que toque suelo,
+  //    sin depender de un tiempo fijo: el juego puede ir mas lento o mas rapido)
   await page.evaluate(() => { player.x = 60; player.y = 100; player.vy = 0; });
-  await page.waitForTimeout(700);
+  await page.waitForFunction(() => player.onGround === true, { timeout: 4000 }).catch(() => {});
   const landed = await page.evaluate(() => ({
     y: Math.round(player.y), onGround: player.onGround,
     maxY: Math.max(...data.platforms.filter(p => p.kind === 'cloud' && p.x < 80).map(p => p.baseY))

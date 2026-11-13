@@ -85,9 +85,9 @@ function serve() {
     return levels.every(x => true);
   })(), null);
 
-  // 3. Física básica heredada
+  // 3. Física básica heredada (esperando el aterrizaje real, sin tiempo fijo)
   await page.evaluate(() => { player.x = 60; player.y = 100; player.vy = 0; });
-  await page.waitForTimeout(700);
+  await page.waitForFunction(() => player.onGround === true, { timeout: 4000 }).catch(() => {});
   const landed = await page.evaluate(() => ({ onGround: player.onGround, y: Math.round(player.y) }));
   check('aterriza en una plataforma', landed.onGround === true, landed);
 

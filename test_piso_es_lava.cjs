@@ -319,8 +319,8 @@ function serve() {
         sizeResults.every(s => s.overflowX <= 0 && s.overflowY <= 0 &&
                                s.fitsW && s.fitsH && Math.abs(s.ratio - 1.6) < 0.02),
         sizeResults);
-  check('todos los tamanos: botones tactiles >= 60x50 px',
-        sizeResults.every(s => s.touch && s.btnW >= 60 && s.btnH >= 50),
+  check('todos los tamanos: botones tactiles >= 60x44 px (minimo tactil)',
+        sizeResults.every(s => s.touch && s.btnW >= 60 && s.btnH >= 44),
         sizeResults.map(s => s.name + ' ' + s.btnW + 'x' + s.btnH));
 
   // Pulsar ▶ mueve al jugador a la derecha

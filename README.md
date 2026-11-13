@@ -34,6 +34,7 @@ NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_cielo_se_cae.cjs   # 35
 NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_selva.cjs          # 25
 NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_cosmos.cjs         # 23
 NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_stumble.cjs        # 10 (tumbo, rival, corona, marea)
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_home.cjs          # 15 (boton Inicio en los 4 juegos)
 ```
 
 Los cuatro juegos se comprobaron además **jugables de principio a fin** con
@@ -98,7 +99,7 @@ el sitio: `netlify.toml` los redirige a la portada.
 Versión "de nubes" de El Piso es Lava: misma física, otro mundo. **10 niveles.**
 Ábrelo con doble clic o `google-chrome cielo-se-cae.html`.
 
-**Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar · M música.
+**Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar · M música · **⌂ / Esc volver al inicio**.
 En móvil: botones ◀ ▶ y ⤒ (solo aparecen en pantallas táctiles); tocar el tablero también salta.
 
 | Elemento | Qué es |
@@ -171,7 +172,7 @@ zigzag (no sabe retroceder a propósito), así que la referencia fiable de jugab
 Juego HTML5 canvas de un solo archivo (sin dependencias). Ábrelo directamente con
 `firefox piso-es-lava.html` o `google-chrome piso-es-lava.html`.
 
-**Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar (al terminar el juego) · M música on/off.
+**Controles:** ← → moverse · ↑ saltar (doble salto) · **1-6 elegir personaje** · R reiniciar (al terminar el juego) · M música on/off · **⌂ / Esc volver al inicio**.
 En móvil: botones ◀ ▶ y ⤒ en pantalla (aparecen solo en pantallas táctiles); tocar el tablero también salta.
 
 ### Toques estilo Stumble Guys (en los 4 juegos)

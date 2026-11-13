@@ -19,6 +19,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -98,15 +99,32 @@
   }
   /* Horizontal en teléfono: poco alto, se compacta todo para que quepa sin scroll */
   @media (max-height: 500px) {
-    body { gap: 2px; padding: 4px; justify-content: flex-start; }
+    body { gap: 2px; padding: 2px 4px 0; justify-content: flex-start; }
     #ui h2 { font-size: 14px; margin: 0; }
     #ui p { display: none; }
     #game { width: min(800px, 100%, calc((100dvh - 92px) * 1.6)); }
     #msg { font-size: 13px; min-height: 0; }
     #music-hint { display: none; }
     #touch { gap: 6px; margin-top: 0; }
-    #touch button { height: 52px; width: 66px; font-size: 22px; border-width: 2px; }
-    #touch button.jump { width: 100px; }
+    #touch button { height: 46px; width: 64px; font-size: 20px; border-width: 2px; }
+    #touch button.jump { width: 96px; }
+    /* en horizontal el boton Inicio va en la fila del titulo, no encima del juego.
+       (#ui #home-btn gana en especificidad al estilo base, que va despues) */
+    #ui { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; }
+    #ui #home-btn {
+      position: static;
+      top: auto;
+      left: auto;
+      margin-right: auto;
+      padding: 0 10px;
+      min-width: 40px;
+      min-height: 34px;
+      font-size: 15px;
+      border-width: 1px;
+      display: inline-flex;
+      justify-content: center;
+    }
+    #ui #home-btn .txt { display: none; }
   }
   /* Vertical en teléfono: sobra alto, botones grandes abajo para los pulgares */
   @media (max-height: 900px) and (orientation: portrait) and (min-width: 380px) and (max-width: 600px) {
@@ -128,11 +146,45 @@
     #touch button { width: 84px; height: 74px; font-size: 26px; }
     #touch button.jump { width: 120px; height: 74px; }
   }
+  /* Boton para volver al selector de juegos */
+  #home-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    font: 600 clamp(12px, 2.4vw, 14px) system-ui, sans-serif;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    cursor: pointer;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  #home-btn:hover, #home-btn:focus-visible {
+    background: rgba(0, 0, 0, 0.75);
+    border-color: rgba(255, 255, 255, 0.75);
+    outline: none;
+  }
+  #home-btn:active { transform: scale(0.96); }
+  @media (max-width: 380px) {
+    #home-btn { padding: 6px 10px; top: 6px; left: 6px; }
+    #home-btn .txt { display: none; }
+  }
 </style>
 </head>
 <body>
 
+
 <div id="ui">
+  <a id="home-btn" href="index.html" title="Volver a elegir juego (Esc)"
+     onclick="return confirmarSalida(event)">⌂ <span class="txt">Inicio</span></a>
   <h2>☁️ El Cielo se Cae ☁️</h2>
   <p>← → moverte · ↑ saltar (doble salto) · ⭐ estrellas (+10) · 🌈 arcoíris (+50) · ☁️ sube por las nubes · 🌬️ cuidado con la brisa</p>
 </div>
@@ -1555,6 +1607,26 @@ loadLevel(level);
 initTouchControls();
 initMusic();
 loop();
+
+// ---------- Volver al selector de juegos ----------
+// Si hay una partida en curso, pregunta antes de salir (no perder el progreso
+// de la partida por un toque accidental).
+function confirmarSalida(e) {
+  const enJuego = (typeof running !== 'undefined' && running) &&
+                  (level > 1 || score > 0);
+  if (enJuego && !confirm('¿Volver al inicio? Se pierde la partida actual (los puntos acumulados y los personajes se guardan).')) {
+    if (e) e.preventDefault();
+    return false;
+  }
+  return true;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === 'h' || e.key === 'H') {
+    if (confirmarSalida(null)) location.href = 'index.html';
+  }
+});
+
 </script>
 
 </body>

@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Orbita Perdida</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #05060f;
+    color: #fff;
+    font-family: sans-serif;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 8px;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  #ui { text-align: center; }
+  #ui h2 { margin: 4px 0; font-size: clamp(16px, 4vw, 24px); }
+  #ui p { margin: 2px 0; font-size: clamp(10px, 2.2vw, 14px); color: #c9d4ff; }
+
+  /* El canvas guarda 800x500 internos (la física no cambia); en pantalla escala
+     hasta el ancho disponible y hasta el alto que deje sitio a la UI. */
+  #game {
+    background: #0a0f22;
+    border: 4px solid #46508f;
+    display: block;
+    width: min(800px, 100%, calc((100dvh - 130px) * 1.6));
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    touch-action: none;
+  }
+  #msg {
+    font-size: clamp(14px, 3.4vw, 22px);
+    min-height: 1.4em;
+    text-align: center;
+    max-width: 92vw;
+  }
+  #music-hint {
+    font-size: clamp(10px, 2vw, 13px);
+    color: #8fa8c8;
+    margin: 0;
+    text-align: center;
+    max-width: 92vw;
+  }
+
+  /* ---------- Controles táctiles (solo en pantallas táctiles) ---------- */
+  #touch {
+    display: none;
+    width: min(800px, 100%);
+    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #touch .side { display: flex; gap: 10px; }
+  #touch button {
+    font-family: inherit;
+    color: #fff;
+    background: #262a52;
+    border: 3px solid #8f8fd6;
+    border-radius: 16px;
+    font-size: 30px;
+    line-height: 1;
+    width: 84px;
+    height: 72px;
+    touch-action: none;
+    cursor: pointer;
+  }
+  #touch button.jump {
+    background: #2a6b4f;
+    border-color: #6fd6a0;
+    width: 130px;
+  }
+  #touch button.active { background: #8f9fe8; }
+  #touch button.jump.active { background: #4fbf8f; }
+  @media (max-height: 560px) {
+    #touch button { height: 58px; width: 72px; font-size: 24px; }
+    #touch button.jump { width: 110px; }
+  }
+  /* Horizontal en teléfono: poco alto, se compacta todo para que quepa sin scroll */
+  @media (max-height: 500px) {
+    body { gap: 2px; padding: 4px; justify-content: flex-start; }
+    #ui h2 { font-size: 14px; margin: 0; }
+    #ui p { display: none; }
+    #game { width: min(800px, 100%, calc((100dvh - 92px) * 1.6)); }
+    #msg { font-size: 13px; min-height: 0; }
+    #music-hint { display: none; }
+    #touch { gap: 6px; margin-top: 0; }
+    #touch button { height: 52px; width: 66px; font-size: 22px; border-width: 2px; }
+    #touch button.jump { width: 100px; }
+  }
+  /* Vertical en teléfono: sobra alto, botones grandes abajo para los pulgares */
+  @media (max-height: 900px) and (orientation: portrait) and (min-width: 380px) and (max-width: 600px) {
+    body { justify-content: space-between; padding: 6px 6px 10px; gap: 4px; }
+    #ui h2 { font-size: 18px; margin: 2px 0; }
+    #ui p { font-size: 10px; line-height: 1.3; }
+    #msg { font-size: 15px; }
+    #music-hint { font-size: 10px; line-height: 1.3; }
+    #touch { margin-top: 0; }
+    #touch button { width: 100px; height: 88px; font-size: 32px; }
+    #touch button.jump { width: 150px; height: 88px; }
+  }
+  @media (orientation: portrait) and (max-width: 379px) {
+    body { justify-content: space-between; padding: 4px; gap: 2px; }
+    #ui h2 { font-size: 16px; margin: 0; }
+    #ui p { font-size: 9px; line-height: 1.25; }
+    #msg { font-size: 13px; }
+    #music-hint { font-size: 9px; line-height: 1.25; }
+    #touch button { width: 84px; height: 74px; font-size: 26px; }
+    #touch button.jump { width: 120px; height: 74px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h2>🚀 Orbita Perdida 🚀</h2>
+  <p>← → moverte · ↑ saltar (doble salto) · ⭐ estrellas (+10) · 💎 cristal (+50) · 🪐 gravedad baja: flotas al saltar · 🌀 los portales te llevan lejos</p>
+</div>
+
+<canvas id="game" width="800" height="500"></canvas>
+<div id="msg"></div>
+
+<div id="touch" aria-label="Controles táctiles">
+  <div class="side">
+    <button id="btn-left" type="button" aria-label="Izquierda">◀</button>
+    <button id="btn-right" type="button" aria-label="Derecha">▶</button>
+  </div>
+  <div class="side">
+    <button id="btn-jump" class="jump" type="button" aria-label="Saltar">⤒</button>
+  </div>
+</div>
+
+<p id="music-hint" style="font-size:13px;color:#8f93c8;margin:6px 0 0">
+  M = música on/off · música espacial hecha en ReBirth (RB-338)
+</p>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const msgEl = document.getElementById('msg');
+
+// ---- Física espacial: misma base, gravedad baja ----
+const GRAVITY = 0.6;            // gravedad normal, la de siempre
+const SPACE_GRAVITY = 0.26;     // en el espacio caes despacio
+const FRICTION = 0.85;
+const MAX_JUMPS = 2;
+const MAX_LEVEL = 3;
+const MOVE_ACCEL = 0.6;
+const MAX_SPEED = 5;
+const JUMP_POWER = 12;
+const COYOTE_FRAMES = 6;
+const JUMP_BUFFER_FRAMES = 6;
+const COYOTE_TOLERANCE = 6;
+const STAR_VALUE = 10;
+const CRYSTAL_VALUE = 50;
+const PORTAL_COOLDOWN = 30;     // frames sin poder re-entrar a un portal
+const ROCK_SINK = 3;            // cuánto cede una roca al pisarla
+
+let keys = {};
+let jumpPressed = false;
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' && !keys['ArrowUp']) jumpPressed = true;
+  keys[e.key] = true;
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => keys[e.key] = false);
+window.addEventListener('blur', () => { keys = {}; jumpPressed = false; });
+
+// ---------- Controles táctiles (pointer events: touch, ratón, lápiz) ----------
+
+const touchState = { ArrowLeft: new Set(), ArrowRight: new Set() };
+
+function releaseKey(name, pointerId) {
+  const set = touchState[name];
+  if (set) {
+    set.delete(pointerId);
+    if (set.size > 0) return;
+  }
+  keys[name] = false;
+}
+
+function bindTouchButton(el, keyName) {
+  if (!el) return;
+  const onDown = e => {
+    e.preventDefault();
+    el.classList.add('active');
+    if (keyName) {
+      touchState[keyName].add(e.pointerId);
+      keys[keyName] = true;
+    } else {
+      jumpPressed = true;
+    }
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  };
+  const onUp = e => {
+    el.classList.remove('active');
+    if (keyName) releaseKey(keyName, e.pointerId);
+  };
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+  el.addEventListener('lostpointercapture', onUp);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function initTouchControls() {
+  bindTouchButton(document.getElementById('btn-left'), 'ArrowLeft');
+  bindTouchButton(document.getElementById('btn-right'), 'ArrowRight');
+  bindTouchButton(document.getElementById('btn-jump'), null);
+
+  const hasTouch = (navigator.maxTouchPoints || 0) > 0 ||
+                   (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const bar = document.getElementById('touch');
+  if (bar && hasTouch) bar.style.display = 'flex';
+
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      e.preventDefault();
+      jumpPressed = true;
+    }
+  });
+}
+
+function makePlayer() {
+  return {
+    x: 50, y: 50, w: 24, h: 24,
+    vx: 0, vy: 0,
+    onGround: false,
+    frozen: false,
+    color: '#ffe9a8',
+    jumpsLeft: MAX_JUMPS,
+    coyote: 0,
+    jumpBuffer: 0
+  };
+}
+const player = makePlayer();
+
+const particles = [];
+let flashUntil = 0;
+
+let level = 1;
+let score = 0;
+let startX = 20, startY = 400;
+let data = null;
+let frame = 0;
+
+// ---------- Generación de niveles ----------
+
+function makeStar(x, y) {
+  return { x, y, r: 9, collected: false };
+}
+// Plataforma espacial: roca (firme) o isla de gravedad
+function makeRock(x, y, w, sway) {
+  return { kind: 'rock', x, y, w, h: 20, sway: sway || 0,
+           phase: Math.random() * Math.PI * 2, sink: 0, baseY: y, baseX: x };
+}
+// Pasarela de metal: plancha firme
+function makeDeck(x, y, w) {
+  return { kind: 'deck', x, y, w, h: 14 };
+}
+// Rampa de polvo estelar: cuesta que da impulso
+function makeRamp(x1, y1, x2, y2) {
+  return { x1, y1, x2, y2 };
+}
+// Portal: entra y sales por el otro extremo del par
+function makePortal(x, y, linkId) {
+  return { x, y, w: 40, h: 60, link: linkId, cool: 0, spin: 0 };
+}
+
+// ---------- Niveles del espacio ----------
+// Gravedad baja en todo el nivel (SPACE_GRAVITY): los saltos flotan mucho mas.
+// Los portales te llevan de un sitio a otro del mapa.
+
+function level1() {
+  // Orbita: saltos flotantes entre rocas, primer portal
+  return {
+    platforms: [
+      makeRock(0, 470, 170),
+      makeDeck(230, 430, 120),
+      makeRock(410, 380, 130, 6),
+      makeRock(600, 330, 140, 8),
+      makeRock(690, 220, 100),
+    ],
+    slopes: [makeRamp(170, 470, 230, 435)],
+    stars: [makeStar(290, 395), makeStar(475, 345), makeStar(670, 295), makeStar(740, 185)],
+    portals: [makePortal(80, 410, 1), makePortal(620, 150, 1)],
+    crystal: null,
+    goal: { x: 700, y: 170, w: 60, h: 50 }
+  };
+}
+
+function level2() {
+  // Cinturon: dos portales encadenados y un hueco enorme en medio
+  return {
+    platforms: [
+      makeRock(0, 470, 140),
+      makeDeck(190, 420, 110),
+      makeRock(370, 360, 120, 6),
+      makeRock(560, 300, 110, 8),
+      makeRock(700, 240, 90),
+    ],
+    slopes: [
+      makeRamp(140, 470, 190, 425),
+      makeRamp(490, 360, 560, 305),
+    ],
+    stars: [makeStar(245, 385), makeStar(430, 325), makeStar(615, 265), makeStar(745, 205)],
+    portals: [
+      makePortal(60, 410, 1),
+      makePortal(380, 290, 1),     // de la entrada a media altura
+      makePortal(720, 180, 2),     // y de aqui a la meta
+    ],
+    crystal: { x: 300, y: 220, r: 11, collected: false },
+    goal: { x: 690, y: 130, w: 60, h: 50 }
+  };
+}
+
+function level3() {
+  // Nebulosa: todo flotante, dos pares de portales y el cristal arriba
+  return {
+    platforms: [
+      makeRock(0, 470, 130),
+      makeRock(180, 420, 90, 8),
+      makeDeck(310, 360, 100),
+      makeRock(460, 300, 90, 10),
+      makeRock(600, 240, 85, 8),
+      makeRock(430, 175, 90, 6),
+      makeRock(600, 120, 100, 6),
+    ],
+    slopes: [
+      makeRamp(130, 470, 180, 425),
+      makeRamp(400, 360, 460, 305),
+    ],
+    stars: [makeStar(225, 385), makeStar(360, 325), makeStar(505, 265),
+            makeStar(645, 205), makeStar(475, 140), makeStar(650, 85)],
+    portals: [
+      makePortal(50, 410, 1),
+      makePortal(320, 290, 1),
+      makePortal(560, 175, 2),
+      makePortal(760, 90, 2),
+    ],
+    crystal: { x: 380, y: 120, r: 11, collected: false },
+    goal: { x: 610, y: 55, w: 60, h: 50 }
+  };
+}
+
+function handcraftedLevel(lvl) {
+  if (lvl === 1) return level1();
+  if (lvl === 2) return level2();
+  if (lvl === 3) return level3();
+  return null;
+}
+
+function getLevelData(lvl) {
+  return handcraftedLevel(lvl);
+}
+
+// ---------- Audio (WebAudio, sin archivos externos) ----------
+
+let audioCtx = null;
+function beep(freq, duration, type, volume) {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.value = freq;
+    const v = volume === undefined ? 0.06 : volume;
+    gain.gain.setValueAtTime(v, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (err) {
+    // Silencioso: si el navegador bloquea el audio, el juego sigue funcionando
+  }
+}
+
+// ---------- Música de fondo (temas celestiales hechos en ReBirth) ----------
+// Un tema distinto por nivel, todos alegres y con aire "celestial".
+
+const MUSIC_THEMES = {
+  // Prototipo: usa los temas existentes hasta componer los del espacio
+  1: { url: 'musica/cielo-3-altura.ogg', volume: 0.40 },
+  2: { url: 'musica/piso-es-lava-final.ogg', volume: 0.40 },
+  3: { url: 'musica/cielo-3-altura.ogg', volume: 0.44 },
+  victory: { url: 'musica/cielo-victoria.ogg', volume: 0.5 }
+};
+
+function musicThemeForLevel(lvl) {
+  return MUSIC_THEMES[lvl] ? lvl : 1;
+}
+
+let music = null;
+let musicOn = true;
+let currentTheme = null;
+
+function initMusic() {
+  try {
+    music = new Audio();
+    music.loop = true;
+    const tryPlay = () => {
+      if (!music || !musicOn) return;
+      const p = music.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+    document.addEventListener('keydown', tryPlay, { once: true });
+    document.addEventListener('pointerdown', tryPlay, { once: true });
+    playTheme(musicThemeForLevel(level));
+  } catch (err) {
+    music = null;
+  }
+}
+
+function playTheme(name, restart) {
+  const theme = MUSIC_THEMES[name];
+  if (!music || !theme) return;
+  if (currentTheme === name && !restart) return;
+  currentTheme = name;
+  music.pause();
+  music.src = theme.url;
+  music.loop = true;
+  music.volume = theme.volume;
+  music.currentTime = 0;
+  if (musicOn) {
+    const p = music.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+}
+
+function playVictoryJingle() {
+  if (!music || !musicOn) return;
+  currentTheme = 'victory';
+  music.pause();
+  music.src = MUSIC_THEMES.victory.url;
+  music.loop = false;
+  music.volume = MUSIC_THEMES.victory.volume;
+  music.currentTime = 0;
+  const p = music.play();
+  if (p && p.catch) p.catch(() => {});
+  music.onended = () => playTheme(musicThemeForLevel(level), true);
+}
+
+function toggleMusic() {
+  if (!music) return;
+  musicOn = !musicOn;
+  if (musicOn) {
+    const p = music.play();
+    if (p && p.catch) p.catch(() => {});
+  } else {
+    music.pause();
+  }
+  const hint = document.getElementById('music-hint');
+  if (hint) hint.textContent = musicOn
+    ? 'M = música on/off · música celestial hecha en ReBirth (RB-338)'
+    : '🔇 música apagada · pulsa M para volver a encenderla';
+}
+
+// ---------- Partículas ----------
+
+function spawnParticles(x, y, color, count, spread) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * (spread || 4),
+      vy: -Math.random() * 3 - 1,
+      life: 30 + Math.random() * 20,
+      color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.10;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ---------- Estado del nivel ----------
+
+function loadLevel(lvl) {
+  data = getLevelData(lvl);
+  particles.length = 0;
+  resetPosition();
+}
+
+function resetPosition() {
+  player.x = startX;
+  player.y = startY;
+  player.vx = 0;
+  player.vy = 0;
+  player.jumpsLeft = MAX_JUMPS;
+  player.frozen = false;
+  player.onGround = false;
+  player.coyote = 0;
+  player.jumpBuffer = 0;
+}
+
+function rectsCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+// Gravedad segun la altura: el espacio es de baja gravedad, las plataformas
+// bajas (cerca del "suelo" del mapa) tiran como un planeta.
+function gravityAt(y) {
+  const t = Math.max(0, Math.min(1, y / canvas.height));   // 0 arriba, 1 abajo
+  return SPACE_GRAVITY + (GRAVITY - SPACE_GRAVITY) * (t * t);
+}
+
+// Portales: si el jugador entra en uno, sale por el otro extremo del par.
+function updatePortals() {
+  const list = data.portals || [];
+  for (const p of list) {
+    if (p.cool > 0) p.cool--;
+  }
+  // solo hay un par a la vez en datos simples: empareja por `link` en orden
+  const active = list.filter(p => p.cool === 0 &&
+    rectsCollide(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h));
+  if (!active.length) return null;
+  const from = active[0];
+  // busca el otro portal del mismo par
+  const to = list.find(q => q !== from && q.link === from.link);
+  if (!to) return null;
+  // aparecer justo al lado del portal de destino (no dentro, para no rebotar)
+  player.x = to.x + to.w / 2 - player.w / 2;
+  player.y = to.y + to.h - player.h - 2;
+  player.vx = 0;
+  player.vy = -3;
+  from.cool = PORTAL_COOLDOWN;
+  to.cool = PORTAL_COOLDOWN;
+  beep(880, 0.18, 'sine', 0.06);
+  spawnParticles(to.x + to.w / 2, to.y + to.h / 2, '#b58cff', 14, 5);
+  return { from, to };
+}
+
+function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx*dx + dy*dy;
+  let t = lenSq === 0 ? 0 : ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return { x: x1 + t * dx, y: y1 + t * dy, t };
+}
+
+
+// ---------- Lógica principal ----------
+
+// Las nubes se mecen despacio; al pisarlas se hunden un poco
+function updateClouds() {
+  for (const p of data.platforms) {
+    // Solo las nubes se mecen y se hunden; las pasarelas son firmes
+    if (p.kind !== 'rock') continue;
+    if (p.sway) {
+      // se mueve, pero nunca se sale del lienzo
+      const minX = 0, maxX = canvas.width - p.w;
+      const want = p.baseX + Math.sin(frame * 0.012 + p.phase) * p.sway;
+      p.x = Math.max(minX, Math.min(maxX, want));
+    }
+    // el hundimiento vuelve a 0 poco a poco
+    if (p.sink > 0) p.sink = Math.max(0, p.sink - 0.4);
+    p.y = p.baseY + p.sink;
+  }
+}
+
+function update() {
+  frame++;
+  if (player.frozen) {
+    updateClouds();
+    updateParticles();
+    return;
+  }
+
+  // Movimiento horizontal con aceleración y tope de velocidad
+  if (keys['ArrowLeft']) player.vx -= MOVE_ACCEL;
+  if (keys['ArrowRight']) player.vx += MOVE_ACCEL;
+
+  player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
+  player.vx *= FRICTION;
+  if (Math.abs(player.vx) < 0.05) player.vx = 0;
+
+  // Coyote time y jump buffer
+  if (player.onGround) player.coyote = COYOTE_FRAMES;
+  else if (player.coyote > 0) player.coyote--;
+
+  if (jumpPressed) player.jumpBuffer = JUMP_BUFFER_FRAMES;
+  else if (player.jumpBuffer > 0) player.jumpBuffer--;
+
+  if (player.jumpBuffer > 0 && player.jumpsLeft > 0) {
+    const isAirJump = player.jumpsLeft === MAX_JUMPS - 1 && !player.onGround && player.coyote === 0;
+    player.vy = isAirJump ? -(JUMP_POWER * 0.92) : -JUMP_POWER;
+    player.onGround = false;
+    player.coyote = 0;
+    player.jumpBuffer = 0;
+    player.jumpsLeft--;
+    beep(isAirJump ? 720 : 560, 0.09, 'sine', 0.05);
+    spawnParticles(player.x + player.w / 2, player.y + player.h, '#e8f6ff', 5, 3);
+  }
+  jumpPressed = false;
+
+  // Gravedad efectiva: baja en el espacio, normal en las zonas de "planeta"
+  player.vy += gravityAt(player.y);
+  player.x += player.vx;
+  player.y += player.vy;
+
+  updateClouds();
+
+  const wasOnGround = player.onGround;
+  player.onGround = false;
+
+  for (const p of data.platforms) {
+    const feetY = player.y + player.h;
+    const prevFeetY = feetY - player.vy;
+    if (
+      player.x + player.w > p.x &&
+      player.x < p.x + p.w &&
+      prevFeetY <= p.y + COYOTE_TOLERANCE &&
+      feetY >= p.y &&
+      player.vy >= 0
+    ) {
+      player.y = p.y - player.h;
+      if (p.kind === 'rock') p.sink = ROCK_SINK;   // la roca cede un poco al pisarla
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  for (const s of data.slopes) {
+    const footX = player.x + player.w/2;
+    const footY = player.y + player.h;
+    const closest = closestPointOnSegment(footX, footY, s.x1, s.y1, s.x2, s.y2);
+    const dist = Math.hypot(footX - closest.x, footY - closest.y);
+    if (dist < 14 && player.vy >= 0 && footY <= closest.y + 16) {
+      player.y = closest.y - player.h;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = MAX_JUMPS;
+      const slopeDir = (s.x2 - s.x1) > 0 ? 1 : -1;
+      const slopeSteepness = Math.abs((s.y2 - s.y1) / (s.x2 - s.x1));
+      player.vx += slopeDir * slopeSteepness * 2.5;
+    }
+  }
+
+  if (!wasOnGround && player.onGround) {
+    spawnParticles(player.x + player.w / 2, player.y + player.h, '#ffffff', 4, 2);
+  }
+
+  if (player.x < 0) { player.x = 0; player.vx = 0; }
+  if (player.x + player.w > canvas.width) { player.x = canvas.width - player.w; player.vx = 0; }
+
+  // estrellas
+  const cx = player.x + player.w/2, cy = player.y + player.h/2;
+  for (const c of data.stars) {
+    if (!c.collected && Math.hypot(cx - c.x, cy - c.y) < c.r + player.w/2) {
+      c.collected = true;
+      score += STAR_VALUE;
+      beep(1040, 0.08, 'sine', 0.05);
+      spawnParticles(c.x, c.y, '#fff3a8', 7, 4);
+    }
+  }
+
+  // arcoíris
+  const rb = data.crystal;
+  if (rb && !rb.collected && Math.hypot(cx - rb.x, cy - rb.y) < rb.r + player.w / 2) {
+    rb.collected = true;
+    score += CRYSTAL_VALUE;
+    beep(1560, 0.22, 'sine', 0.06);
+    spawnParticles(rb.x, rb.y, '#ffd1f0', 14, 5);
+  }
+
+
+  // Caer del cielo: el hueco entre nubes se lo traga
+  if (player.y > canvas.height) {
+    die('🌑 ¡Te perdiste en el vacío! Vuelves al inicio...');
+    return;
+  }
+
+  updatePortals();
+
+  if (rectsCollide(player.x, player.y, player.w, player.h, data.goal.x, data.goal.y, data.goal.w, data.goal.h)) {
+    win();
+    return;
+  }
+
+  updateParticles();
+}
+
+
+// ---------- Fin de nivel, caída, reinicio ----------
+
+function die(reason) {
+  msgEl.textContent = reason || '🌑 ¡Te perdiste en el vacío! Vuelves al inicio...';
+  msgEl.style.color = '#ff9ec4';
+  flashUntil = frame + 16;
+  beep(300, 0.35, 'sine', 0.05);
+  setTimeout(() => beep(200, 0.3, 'sine', 0.04), 120);
+  spawnParticles(player.x + player.w / 2,
+                 Math.min(player.y + player.h / 2, canvas.height - 10),
+                 '#cfe8ff', 16, 5);
+  resetPosition();
+  setTimeout(() => { msgEl.textContent = ''; }, 1000);
+}
+
+let running = true;
+
+function win() {
+  msgEl.style.color = '#a8ffcf';
+  running = false;
+  player.vx = 0;
+  player.vy = 0;
+  if (level >= MAX_LEVEL) {
+    beep(660, 0.15, 'sine', 0.07);
+    setTimeout(() => beep(880, 0.15, 'sine', 0.07), 160);
+    setTimeout(() => beep(1180, 0.35, 'sine', 0.07), 320);
+    playVictoryJingle();
+    msgEl.textContent = '🏆 ¡Cruzaste las ' + MAX_LEVEL + ' orbitas con ' + score + ' puntos! Presiona R para jugar otra vez.';
+  } else {
+    beep(700, 0.1, 'sine', 0.06);
+    setTimeout(() => beep(1050, 0.18, 'sine', 0.06), 110);
+    const nextLevel = level + 1;
+    msgEl.textContent = '✅ ¡Nivel ' + level + ' superado! Entrando en la orbita ' + nextLevel + '...';
+    setTimeout(() => {
+      level = nextLevel;
+      loadLevel(level);
+      playTheme(musicThemeForLevel(level));   // cada nivel tiene su tema
+      msgEl.textContent = '';
+      running = true;
+      requestAnimationFrame(loop);
+    }, 1000);
+  }
+}
+
+function restartGame() {
+  level = 1;
+  score = 0;
+  msgEl.textContent = '';
+  msgEl.style.color = '#a8ffcf';
+  loadLevel(level);
+  if (music) music.onended = null;
+  playTheme(musicThemeForLevel(level), true);
+  if (!running) {
+    running = true;
+    requestAnimationFrame(loop);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'r' || e.key === 'R') && !running) restartGame();
+  if (e.key === 'm' || e.key === 'M') toggleMusic();
+});
+
+
+// ---------- Dibujo ----------
+
+// ---------- Dibujo: espacio ----------
+
+// Estrellas de fondo: posiciones fijas (deterministas) que parpadean
+const STARS_BG = (() => {
+  const out = [];
+  let s = 1337;
+  const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  for (let i = 0; i < 90; i++) {
+    out.push({ x: rnd() * 800, y: rnd() * 500, r: 0.5 + rnd() * 1.4, ph: rnd() * 6.28 });
+  }
+  return out;
+})();
+
+function drawBackground() {
+  // Espacio: negro azulado arriba, violeta tenue abajo
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, '#05060f');
+  sky.addColorStop(0.55, '#101a3a');
+  sky.addColorStop(1, '#2a1a44');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Estrellas parpadeantes
+  for (const st of STARS_BG) {
+    const tw = 0.45 + Math.sin(frame * 0.05 + st.ph) * 0.45;
+    ctx.globalAlpha = Math.max(0.1, tw);
+    ctx.fillStyle = '#dbe8ff';
+    ctx.fillRect(st.x, st.y, st.r, st.r);
+  }
+  ctx.globalAlpha = 1;
+
+  // Nebulosa a la derecha
+  const neb = ctx.createRadialGradient(690, 120, 20, 690, 120, 260);
+  neb.addColorStop(0, 'rgba(140, 90, 220, 0.30)');
+  neb.addColorStop(0.5, 'rgba(70, 60, 170, 0.14)');
+  neb.addColorStop(1, 'rgba(20, 20, 60, 0)');
+  ctx.fillStyle = neb;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// Roca: plataforma de piedra espacial, con cráteres
+function drawRock(p) {
+  const h = p.h;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillRect(p.x + 3, p.y + 6, p.w, h * 0.6);
+  // cuerpo
+  ctx.fillStyle = '#4a4a63';
+  ctx.fillRect(p.x, p.y, p.w, h * 0.6);
+  // superficie iluminada
+  ctx.fillStyle = '#7d7d9c';
+  ctx.fillRect(p.x, p.y, p.w, 5);
+  // cráteres
+  ctx.fillStyle = '#3a3a50';
+  for (let i = 14; i < p.w - 8; i += 34) {
+    ctx.beginPath();
+    ctx.arc(p.x + i, p.y + h * 0.35, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // borde
+  ctx.strokeStyle = '#8f8fb0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, h * 0.6);
+}
+
+// Pasarela: plancha metalica con remaches y luces
+function drawDeck(p) {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillRect(p.x + 3, p.y + 5, p.w, p.h);
+  ctx.fillStyle = '#5f6b80';
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = '#8fa2bd';
+  ctx.fillRect(p.x, p.y, p.w, 4);
+  // remaches
+  ctx.fillStyle = '#39485c';
+  for (let i = 7; i < p.w; i += 16) {
+    ctx.fillRect(p.x + i, p.y + 7, 2, 2);
+  }
+  // luces de borde
+  const glow = 0.5 + Math.sin(frame * 0.12) * 0.5;
+  ctx.globalAlpha = glow;
+  ctx.fillStyle = '#6ff0ff';
+  ctx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+  ctx.globalAlpha = 1;
+}
+
+// Rampa: cuesta de polvo estelar
+function drawRamp(s) {
+  const g = ctx.createLinearGradient(s.x1, s.y1, s.x2, s.y2);
+  g.addColorStop(0, 'rgba(120, 100, 220, 0.9)');
+  g.addColorStop(1, 'rgba(200, 160, 255, 0.9)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(s.x1, s.y1);
+  ctx.lineTo(s.x2, s.y2);
+  ctx.lineTo(s.x2, s.y2 + 22);
+  ctx.lineTo(s.x1, s.y1 + 22);
+  ctx.closePath();
+  ctx.fill();
+  // chispas
+  for (let i = 0; i < 5; i++) {
+    const t = ((frame * 0.01 + i * 0.2) % 1);
+    const x = s.x1 + (s.x2 - s.x1) * t;
+    const y = s.y1 + (s.y2 - s.y1) * t;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y - 2, 2, 2);
+  }
+}
+
+// Estrella (+10)
+function drawStar(c) {
+  if (c.collected) return;
+  const twinkle = 0.75 + Math.sin(frame * 0.12 + c.x * 0.1) * 0.25;
+  const bob = Math.sin(frame * 0.08 + c.x * 0.05) * 2;
+  const x = c.x, y = c.y + bob, r = c.r;
+  ctx.save();
+  ctx.shadowColor = 'rgba(255, 240, 150, ' + twinkle.toFixed(2) + ')';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = '#fff3a8';
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const ang = -Math.PI / 2 + (Math.PI / 5) * i;
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const px = x + Math.cos(ang) * rad;
+    const py = y + Math.sin(ang) * rad;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Cristal (+50): rombo violeta girando
+function drawCrystal(rb) {
+  if (!rb || rb.collected) return;
+  const bob = Math.sin(frame * 0.06) * 3;
+  const spin = frame * 0.03;
+  const cx = rb.x, cy = rb.y + bob, r = rb.r;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(spin);
+  ctx.shadowColor = 'rgba(180, 140, 255, 0.95)';
+  ctx.shadowBlur = 16;
+  const g = ctx.createLinearGradient(-r, -r, r, r);
+  g.addColorStop(0, '#e0c8ff');
+  g.addColorStop(1, '#8f6bff');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 1.2);
+  ctx.lineTo(r * 0.8, 0);
+  ctx.lineTo(0, r * 1.2);
+  ctx.lineTo(-r * 0.8, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Portal: remolino de anillos giratorios
+function drawPortal(p) {
+  const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+  const pulse = 0.65 + Math.sin(frame * 0.08 + p.x) * 0.35;
+  ctx.save();
+  ctx.globalAlpha = 0.25 * pulse;
+  ctx.fillStyle = '#9b7bff';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, p.w * 0.95, p.h * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // anillos
+  for (let i = 0; i < 3; i++) {
+    const t = (frame * 0.03 + i * 0.33) % 1;
+    ctx.strokeStyle = 'rgba(190, 160, 255, ' + (1 - t).toFixed(2) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, p.w * 0.15 + t * p.w * 0.45,
+                p.h * 0.12 + t * p.h * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // nucleo
+  ctx.fillStyle = '#f0e6ff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 50);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+
+function drawGoal(g) {
+  // Estacion espacial: plataforma con luz de atraque
+  const glow = 0.5 + Math.sin(frame * 0.09) * 0.3;
+  ctx.save();
+  ctx.shadowColor = 'rgba(120, 230, 255, ' + glow.toFixed(2) + ')';
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = '#dfe9ff';
+  ctx.fillRect(g.x, g.y, g.w, g.h);
+  ctx.restore();
+  // paneles solares a los lados
+  ctx.fillStyle = '#3f6fa8';
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(g.x - 16, g.y + 8 + i * 13, 12, 9);
+    ctx.fillRect(g.x + g.w + 4, g.y + 8 + i * 13, 12, 9);
+  }
+  ctx.strokeStyle = '#6ff0ff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(g.x + 2, g.y + 2, g.w - 4, g.h - 4);
+  ctx.fillStyle = '#1d3557';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('META', g.x + 14, g.y + 30);
+}
+
+function drawPlayer() {
+  // Astronauta: casco blanco con visera azul y mochila
+  ctx.save();
+  if (!player.onGround) {
+    ctx.shadowColor = 'rgba(140, 220, 255, 0.95)';
+    ctx.shadowBlur = 14;
+  }
+  // mochila
+  ctx.fillStyle = '#9aa4c0';
+  ctx.fillRect(player.x + (player.vx > 0.5 ? 0 : player.w - 6), player.y + 8, 6, 12);
+  // traje
+  ctx.fillStyle = player.frozen ? '#ffc2e0' : '#eef3ff';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(player.x, player.y + 4, player.w, player.h - 4, 9);
+  else ctx.rect(player.x, player.y + 4, player.w, player.h - 4);
+  ctx.fill();
+  // visera
+  ctx.fillStyle = player.frozen ? '#ff9ecd' : '#2b5fd9';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(player.x + 4, player.y + 7, player.w - 8, 11, 5);
+  else ctx.rect(player.x + 4, player.y + 7, player.w - 8, 11);
+  ctx.fill();
+  ctx.restore();
+
+  // reflejo en la visera
+  const look = player.vx > 0.5 ? 4 : (player.vx < -0.5 ? 1 : 3);
+  ctx.fillStyle = 'rgba(200, 240, 255, 0.85)';
+  ctx.fillRect(player.x + look, player.y + 10, 3, 3);
+  ctx.fillRect(player.x + look + 6, player.y + 10, 3, 3);
+
+  // saltos restantes
+  if (!player.frozen) {
+    for (let i = 0; i < player.jumpsLeft; i++) {
+      ctx.fillStyle = 'rgba(160, 230, 255, 0.95)';
+      ctx.fillRect(player.x + 4 + i * 7, player.y - 8, 5, 3);
+    }
+  }
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('Orbita: ' + level + ' / ' + MAX_LEVEL, 10, 20);
+  ctx.fillText('Puntos: ' + score, 10, 40);
+
+  const total = data.stars.length;
+  const got = data.stars.filter(c => c.collected).length;
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#fff3a8';
+  ctx.fillText('⭐ ' + got + ' / ' + total, canvas.width - 90, 20);
+}
+
+function draw() {
+  drawBackground();
+
+  // portales detras de las plataformas
+  for (const p of data.portals || []) drawPortal(p);
+
+  for (const s of data.slopes) drawRamp(s);
+  for (const p of data.platforms) {
+    if (p.kind === 'deck') drawDeck(p);
+    else drawRock(p);
+  }
+  for (const c of data.stars) drawStar(c);
+  drawCrystal(data.crystal);
+  drawGoal(data.goal);
+  drawPlayer();
+  drawParticles();
+  drawHUD();
+
+  if (frame < flashUntil) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loadLevel(level);
+initTouchControls();
+initMusic();
+loop();
+</script>
+
+</body>
+</html>

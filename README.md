@@ -1,15 +1,32 @@
 # Juegos
 
-Sitio estático con **dos juegos** y una portada para elegir. Sin build, sin dependencias:
+Sitio estático con **cuatro juegos** y una portada para elegir. Sin build, sin dependencias:
 se publica la carpeta tal cual (Netlify, GitHub Pages, o un `python3 -m http.server`).
 
 ```
 index.html            ← portada: elegir juego
-piso-es-lava.html     ← juego 1 (10 niveles)
-cielo-se-cae.html     ← juego 2 (10 niveles)
+piso-es-lava.html     ← juego 1 (10 niveles) - lava
+cielo-se-cae.html     ← juego 2 (10 niveles) - nubes
+naturaleza.html       ← PROTOTIPO (3 niveles) - selva
+cosmico.html          ← PROTOTIPO (3 niveles) - espacio
 musica/               ← temas .ogg (+ los .rbs originales de ReBirth)
 netlify.toml          ← configuración de Netlify (sin build)
 ```
+
+### Los cuatro ambientes y su mecánica
+
+Cada mundo tiene **una mecánica propia**, no solo un cambio de colores:
+
+| Juego | Ambiente | Mecánica característica |
+|---|---|---|
+| El Piso es Lava | 🌋 lava | lava móvil que patrulla los huecos |
+| El Cielo se Cae | ☁️ cielo | nubes que se mecen y se hunden, brisa que empuja |
+| La Selva Sube *(prototipo)* | 🌿 selva | **ramas finas que se rompen** al pisarlas + **lianas** que te lanzan |
+| Órbita Perdida *(prototipo)* | 🌌 espacio | **gravedad baja** (0,26 en vez de 0,6) + **portales** que teletransportan |
+
+Los dos prototipos están **completos y jugables** (3 niveles cada uno, con música, móvil y
+verificados), pero pendientes de ampliar a 10 niveles y de música propia: por ahora reutilizan
+los temas ya compuestos.
 
 ## Desplegar en Netlify desde GitHub
 

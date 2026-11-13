@@ -29,12 +29,12 @@ srv.listen(0,'127.0.0.1',async()=>{
        overflowY:document.documentElement.scrollHeight-innerHeight,
        h1:document.querySelector('h1').textContent.trim()};
    });
-   const ok = m.cardsCount===2 && m.cards.every(c=>c.visible) && m.overflowX<=0;
+   const ok = m.cardsCount===4 && m.cards.every(c=>c.visible) && m.overflowX<=0;
    console.log((ok?'PASS':'FAIL'), name.padEnd(11), '| tarjetas:', m.cards.map(c=>c.href+' '+c.w+'x'+c.h).join(' | '), '| scrollX', m.overflowX, '| scrollY', m.overflowY, errs.length?('ERR '+errs):'');
    await ctx.close();
  }
  console.log('\n=== NAVEGACION: index -> juego ===');
- for(const game of ['piso-es-lava.html','cielo-se-cae.html']){
+ for(const game of ['piso-es-lava.html','cielo-se-cae.html','naturaleza.html','cosmico.html']){
    const ctx=await b.newContext({viewport:{width:1280,height:800}});
    const p=await ctx.newPage();
    const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});

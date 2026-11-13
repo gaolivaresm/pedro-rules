@@ -45,9 +45,9 @@
   /* ---------- Tarjetas ---------- */
   .games {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: clamp(14px, 3vw, 28px);
-    width: min(940px, 100%);
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: clamp(14px, 3vw, 24px);
+    width: min(1080px, 100%);
   }
   .card {
     position: relative;
@@ -196,15 +196,131 @@
     color: #61708a;
     text-align: center;
   }
+  /* --- selva --- */
+  .selva .scene {
+    background: linear-gradient(#0d2a1a 0%, #1f5a34 55%, #6fae5c 100%);
+  }
+  .selva .light {
+    position: absolute; top: -10%; left: 30%;
+    width: 40%; height: 130%;
+    background: linear-gradient(rgba(234, 255, 176, .22), rgba(234, 255, 176, 0));
+    transform: rotate(14deg);
+  }
+  .selva .branch {
+    position: absolute;
+    height: 11px;
+    border-radius: 5px;
+    background: #6b4a2a;
+    box-shadow: 0 3px 0 rgba(10, 30, 15, .45);
+    animation: bob 3.4s ease-in-out infinite;
+  }
+  .selva .branch::before, .selva .branch::after {
+    content: "";
+    position: absolute; top: -6px;
+    width: 14px; height: 8px; border-radius: 50% 50% 50% 50%;
+    background: #2f7a3f;
+  }
+  .selva .branch::before { left: -2px; }
+  .selva .branch::after  { right: -2px; }
+  .selva .branch:nth-child(2) { left: 8%;  bottom: 18px; width: 26%; }
+  .selva .branch:nth-child(3) { left: 42%; bottom: 56px; width: 22%; animation-delay: .5s; }
+  .selva .branch:nth-child(4) { left: 70%; bottom: 96px; width: 22%; animation-delay: 1s; }
+  .selva .vine {
+    position: absolute; left: 36%; top: 8%;
+    width: 4px; height: 62%;
+    border-radius: 4px;
+    background: #3f8a3a;
+    transform-origin: top center;
+    animation: sway 3s ease-in-out infinite;
+  }
+  .selva .squirrel {
+    position: absolute; left: 13%; bottom: 30px;
+    width: 16px; height: 16px; border-radius: 6px;
+    background: #c98a4b; box-shadow: 0 0 14px rgba(200, 247, 138, .7);
+    animation: hop 1.7s cubic-bezier(.5,.05,.5,.95) infinite;
+  }
+  .selva .leaf {
+    position: absolute; width: 12px; height: 7px; border-radius: 50%;
+    background: #a8e86a; box-shadow: 0 0 10px rgba(168, 232, 106, .85);
+  }
+  .selva .leaf:nth-of-type(5) { left: 46%; bottom: 80px; }
+  .selva .leaf:nth-of-type(6) { left: 78%; bottom: 120px; }
 
-  @keyframes bob     { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-  @keyframes hop     { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-34px); } }
-  @keyframes drift   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
-  @keyframes twinkle { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+  /* --- cosmos --- */
+  .cosmos .scene {
+    background:
+      radial-gradient(circle at 78% 22%, rgba(140, 90, 220, .38) 0%, rgba(20, 20, 60, 0) 55%),
+      linear-gradient(#05060f 0%, #101a3a 60%, #2a1a44 100%);
+  }
+  .cosmos .stars-bg {
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #fff, transparent),
+      radial-gradient(1px 1px at 28% 62%, #dfe8ff, transparent),
+      radial-gradient(1.5px 1.5px at 46% 28%, #fff, transparent),
+      radial-gradient(1px 1px at 62% 74%, #c9d4ff, transparent),
+      radial-gradient(1px 1px at 84% 48%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 92% 22%, #fff, transparent),
+      radial-gradient(1px 1px at 8% 80%, #dfe8ff, transparent);
+    animation: twinkle 2.6s ease-in-out infinite;
+  }
+  .cosmos .rock {
+    position: absolute;
+    height: 12px;
+    border-radius: 3px;
+    background: #4a4a63;
+    border-top: 4px solid #7d7d9c;
+    animation: bob 4s ease-in-out infinite;
+  }
+  .cosmos .rock:nth-child(3) { left: 8%;  bottom: 16px; width: 26%; }
+  .cosmos .rock:nth-child(4) { left: 44%; bottom: 58px; width: 20%; animation-delay: .7s; }
+  .cosmos .rock:nth-child(5) { left: 72%; bottom: 98px; width: 20%; animation-delay: 1.4s; }
+  .cosmos .portal {
+    position: absolute; left: 32%; bottom: 46px;
+    width: 26px; height: 40px; border-radius: 50%;
+    border: 2px solid #b9a0ff;
+    box-shadow: 0 0 18px rgba(185, 160, 255, .8), inset 0 0 12px rgba(185, 160, 255, .6);
+    animation: pulsePortal 1.8s ease-in-out infinite;
+  }
+  .cosmos .astronaut {
+    position: absolute; left: 12%; bottom: 30px;
+    width: 16px; height: 16px; border-radius: 6px;
+    background: #eef3ff; box-shadow: 0 0 16px rgba(140, 220, 255, .85);
+    animation: hopFloat 2.6s cubic-bezier(.4,0,.5,1) infinite;
+  }
+  .cosmos .crystal {
+    position: absolute; left: 66%; bottom: 128px;
+    width: 12px; height: 12px;
+    background: linear-gradient(#e0c8ff, #8f6bff);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    animation: twinkle 2s ease-in-out infinite;
+  }
 
-  /* Menos movimiento si el sistema lo pide */
+  .selva .tag.accent  { background: rgba(140, 230, 110, .18); border-color: rgba(140, 230, 110, .5); color: #d6ffbf; }
+  .cosmos .tag.accent { background: rgba(185, 160, 255, .18); border-color: rgba(185, 160, 255, .5); color: #e0d4ff; }
+  .selva .play  { color: #a8e86a; }
+  .cosmos .play { color: #b9a0ff; }
+
+  .card .badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 999px;
+    background: rgba(0, 0, 0, .55);
+    border: 1px solid rgba(255, 255, 255, .35);
+    color: #fff;
+  }
+
+  @keyframes bob       { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes hop       { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-34px); } }
+  @keyframes drift     { 0%,100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+  @keyframes twinkle   { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+  @keyframes sway        { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes pulsePortal { 0%,100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.12); opacity: 1; } }
+  @keyframes hopFloat    { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-26px); } }
+
   @media (prefers-reduced-motion: reduce) {
-    .platform, .player, .cloud, .star { animation: none !important; }
+    .platform, .player, .cloud, .star, .branch, .vine, .squirrel, .leaf,
+    .rock, .portal, .astronaut, .crystal, .stars-bg, .light { animation: none !important; }
     .card:hover, .card:focus-visible { transform: none; }
   }
 </style>
@@ -259,6 +375,52 @@
         <span class="tag accent">brisa</span>
       </div>
       <span class="play">Jugar →</span>
+    </div>
+  </a>
+  <a class="card selva" href="naturaleza.html">
+    <span class="badge">prototipo</span>
+    <div class="scene" aria-hidden="true">
+      <span class="light"></span>
+      <span class="branch"></span>
+      <span class="branch"></span>
+      <span class="branch"></span>
+      <span class="leaf"></span>
+      <span class="leaf"></span>
+      <span class="vine"></span>
+      <span class="squirrel"></span>
+    </div>
+    <div class="card-body">
+      <h2>🌿 La Selva Sube</h2>
+      <p>Trepa por ramas y troncos hasta la copa. Las ramas finas se rompen bajo tus pies y las lianas te lanzan.</p>
+      <div class="tags">
+        <span class="tag">3 niveles</span>
+        <span class="tag">ramas frágiles</span>
+        <span class="tag accent">lianas</span>
+      </div>
+      <span class="play">Probar →</span>
+    </div>
+  </a>
+
+  <a class="card cosmos" href="cosmico.html">
+    <span class="badge">prototipo</span>
+    <div class="scene" aria-hidden="true">
+      <span class="stars-bg"></span>
+      <span class="rock"></span>
+      <span class="rock"></span>
+      <span class="rock"></span>
+      <span class="portal"></span>
+      <span class="crystal"></span>
+      <span class="astronaut"></span>
+    </div>
+    <div class="card-body">
+      <h2>🚀 Órbita Perdida</h2>
+      <p>Salta entre rocas con gravedad baja y cruza el mapa por portales. El cristal violeta vale el doble que una estrella.</p>
+      <div class="tags">
+        <span class="tag">3 niveles</span>
+        <span class="tag">gravedad baja</span>
+        <span class="tag accent">portales</span>
+      </div>
+      <span class="play">Probar →</span>
     </div>
   </a>
 

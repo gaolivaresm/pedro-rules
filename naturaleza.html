@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14351f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>La Selva Sube</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #0a1f12;
+    color: #fff;
+    font-family: sans-serif;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 8px;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  #ui { text-align: center; }
+  #ui h2 { margin: 4px 0; font-size: clamp(16px, 4vw, 24px); }
+  #ui p { margin: 2px 0; font-size: clamp(10px, 2.2vw, 14px); color: #cbe8bf; }
+
+  /* El canvas guarda 800x500 internos (la física no cambia); en pantalla escala
+     hasta el ancho disponible y hasta el alto que deje sitio a la UI. */
+  #game {
+    background: #12301c;
+    border: 4px solid #3c7a48;
+    display: block;
+    width: min(800px, 100%, calc((100dvh - 130px) * 1.6));
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    touch-action: none;
+  }
+  #msg {
+    font-size: clamp(14px, 3.4vw, 22px);
+    min-height: 1.4em;
+    text-align: center;
+    max-width: 92vw;
+  }
+  #music-hint {
+    font-size: clamp(10px, 2vw, 13px);
+    color: #8fa8c8;
+    margin: 0;
+    text-align: center;
+    max-width: 92vw;
+  }
+
+  /* ---------- Controles táctiles (solo en pantallas táctiles) ---------- */
+  #touch {
+    display: none;
+    width: min(800px, 100%);
+    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #touch .side { display: flex; gap: 10px; }
+  #touch button {
+    font-family: inherit;
+    color: #fff;
+    background: #2b4f7a;
+    border: 3px solid #5f9fd6;
+    border-radius: 16px;
+    font-size: 30px;
+    line-height: 1;
+    width: 84px;
+    height: 72px;
+    touch-action: none;
+    cursor: pointer;
+  }
+  #touch button.jump {
+    background: #2a6b4f;
+    border-color: #6fd6a0;
+    width: 130px;
+  }
+  #touch button.active { background: #7fb6e8; }
+  #touch button.jump.active { background: #4fbf8f; }
+  @media (max-height: 560px) {
+    #touch button { height: 58px; width: 72px; font-size: 24px; }
+    #touch button.jump { width: 110px; }
+  }
+  /* Horizontal en teléfono: poco alto, se compacta todo para que quepa sin scroll */
+  @media (max-height: 500px) {
+    body { gap: 2px; padding: 4px; justify-content: flex-start; }
+    #ui h2 { font-size: 14px; margin: 0; }
+    #ui p { display: none; }
+    #game { width: min(800px, 100%, calc((100dvh - 92px) * 1.6)); }
+    #msg { font-size: 13px; min-height: 0; }
+    #music-hint { display: none; }
+    #touch { gap: 6px; margin-top: 0; }
+    #touch button { height: 52px; width: 66px; font-size: 22px; border-width: 2px; }
+    #touch button.jump { width: 100px; }
+  }
+  /* Vertical en teléfono: sobra alto, botones grandes abajo para los pulgares */
+  @media (max-height: 900px) and (orientation: portrait) and (min-width: 380px) and (max-width: 600px) {
+    body { justify-content: space-between; padding: 6px 6px 10px; gap: 4px; }
+    #ui h2 { font-size: 18px; margin: 2px 0; }
+    #ui p { font-size: 10px; line-height: 1.3; }
+    #msg { font-size: 15px; }
+    #music-hint { font-size: 10px; line-height: 1.3; }
+    #touch { margin-top: 0; }
+    #touch button { width: 100px; height: 88px; font-size: 32px; }
+    #touch button.jump { width: 150px; height: 88px; }
+  }
+  @media (orientation: portrait) and (max-width: 379px) {
+    body { justify-content: space-between; padding: 4px; gap: 2px; }
+    #ui h2 { font-size: 16px; margin: 0; }
+    #ui p { font-size: 9px; line-height: 1.25; }
+    #msg { font-size: 13px; }
+    #music-hint { font-size: 9px; line-height: 1.25; }
+    #touch button { width: 84px; height: 74px; font-size: 26px; }
+    #touch button.jump { width: 120px; height: 74px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h2>🌿 La Selva Sube 🌿</h2>
+  <p>← → moverte · ↑ saltar (doble salto) · 🍃 hojas (+10) · 🌺 flor (+50) · 🌿 sube por ramas · ⚠️ las ramas finas se rompen · 🌀 las lianas te lanzan</p>
+</div>
+
+<canvas id="game" width="800" height="500"></canvas>
+<div id="msg"></div>
+
+<div id="touch" aria-label="Controles táctiles">
+  <div class="side">
+    <button id="btn-left" type="button" aria-label="Izquierda">◀</button>
+    <button id="btn-right" type="button" aria-label="Derecha">▶</button>
+  </div>
+  <div class="side">
+    <button id="btn-jump" class="jump" type="button" aria-label="Saltar">⤒</button>
+  </div>
+</div>
+
+<p id="music-hint" style="font-size:13px;color:#8fa8c8;margin:6px 0 0">
+  M = música on/off · música celestial hecha en ReBirth (RB-338)
+</p>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const msgEl = document.getElementById('msg');
+
+// ---- Física: idéntica a la ya validada en "El Piso es Lava" ----
+const GRAVITY = 0.6;
+const FRICTION = 0.85;
+const MAX_JUMPS = 2;
+const MAX_LEVEL = 3;
+const MOVE_ACCEL = 0.6;
+const MAX_SPEED = 5;
+const JUMP_POWER = 12;
+const COYOTE_FRAMES = 6;
+const JUMP_BUFFER_FRAMES = 6;
+const COYOTE_TOLERANCE = 6;
+const LEAF_VALUE = 10;
+const FLOWER_VALUE = 50;
+const BREEZE_MS = 900;          // cuánto dura un empujón de brisa
+const CLOUD_SINK = 4;           // cuánto se hunde una nube al pisarla
+
+let keys = {};
+let jumpPressed = false;
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' && !keys['ArrowUp']) jumpPressed = true;
+  keys[e.key] = true;
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => keys[e.key] = false);
+window.addEventListener('blur', () => { keys = {}; jumpPressed = false; });
+
+// ---------- Controles táctiles (pointer events: touch, ratón, lápiz) ----------
+
+const touchState = { ArrowLeft: new Set(), ArrowRight: new Set() };
+
+function releaseKey(name, pointerId) {
+  const set = touchState[name];
+  if (set) {
+    set.delete(pointerId);
+    if (set.size > 0) return;
+  }
+  keys[name] = false;
+}
+
+function bindTouchButton(el, keyName) {
+  if (!el) return;
+  const onDown = e => {
+    e.preventDefault();
+    el.classList.add('active');
+    if (keyName) {
+      touchState[keyName].add(e.pointerId);
+      keys[keyName] = true;
+    } else {
+      jumpPressed = true;
+    }
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  };
+  const onUp = e => {
+    el.classList.remove('active');
+    if (keyName) releaseKey(keyName, e.pointerId);
+  };
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+  el.addEventListener('lostpointercapture', onUp);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function initTouchControls() {
+  bindTouchButton(document.getElementById('btn-left'), 'ArrowLeft');
+  bindTouchButton(document.getElementById('btn-right'), 'ArrowRight');
+  bindTouchButton(document.getElementById('btn-jump'), null);
+
+  const hasTouch = (navigator.maxTouchPoints || 0) > 0 ||
+                   (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const bar = document.getElementById('touch');
+  if (bar && hasTouch) bar.style.display = 'flex';
+
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      e.preventDefault();
+      jumpPressed = true;
+    }
+  });
+}
+
+function makePlayer() {
+  return {
+    x: 50, y: 50, w: 24, h: 24,
+    vx: 0, vy: 0,
+    onGround: false,
+    frozen: false,
+    color: '#ffe9a8',
+    jumpsLeft: MAX_JUMPS,
+    coyote: 0,
+    jumpBuffer: 0
+  };
+}
+const player = makePlayer();
+
+const particles = [];
+let flashUntil = 0;
+
+let level = 1;
+let score = 0;
+let startX = 20, startY = 400;
+let data = null;
+let frame = 0;
+
+// ---------- Generación de niveles ----------
+
+function makeStar(x, y) {
+  return { x, y, r: 9, collected: false };
+}
+// Nube: plataforma blanda. `sway` la mece suavemente en horizontal.
+// Rama: plataforma del bosque. Si es `thin` (fina) se rompe al pisarla.
+function makeBranch(x, y, w, sway, thin) {
+  return { kind: 'branch', x, y, w, h: 20, sway: sway || 0,
+           phase: Math.random() * Math.PI * 2, sink: 0, baseY: y, baseX: x,
+           thin: !!thin, broken: false, crack: 0 };
+}
+// Tronco: plataforma firme y ancha
+function makeTrunk(x, y, w) {
+  return { kind: 'trunk', x, y, w, h: 14 };
+}
+// Raíz: cuesta del bosque que da impulso
+function makeRoot(x1, y1, x2, y2) {
+  return { x1, y1, x2, y2 };
+}
+// Liana: te agarra y te lanza en la direccion en que vayas
+function makeVine(x, y, w, h, force) {
+  return { x, y, w, h, force: force || -0.12, active: false, timer: 0 };
+}
+
+// ---------- Niveles de la selva ----------
+// Ramas finas (5º argumento `true`) se rompen al pisarlas: hay que pasar rapido.
+// Las lianas (makeVine) te dan un empujon al tocarlas.
+
+function level1() {
+  // Claro del bosque: troncos anchos y la primera rama fina
+  return {
+    platforms: [
+      makeBranch(0, 470, 170),
+      makeTrunk(230, 430, 130),
+      makeBranch(420, 370, 140, 6),
+      makeBranch(610, 310, 150, 8),
+      makeBranch(690, 220, 110, 6, true),   // fina: se rompe
+    ],
+    slopes: [makeRoot(170, 470, 230, 435)],
+    leaves: [makeStar(290, 395), makeStar(480, 335), makeStar(680, 275), makeStar(740, 185)],
+    vines: [],
+    flower: null,
+    goal: { x: 700, y: 170, w: 60, h: 50 }
+  };
+}
+
+function level2() {
+  // Enredadera: subes por ramas finas y una liana te cruza el hueco grande
+  return {
+    platforms: [
+      makeBranch(0, 470, 140),
+      makeBranch(200, 430, 100, 8, true),
+      makeTrunk(380, 380, 120),
+      makeBranch(560, 320, 110, 10, true),
+      makeBranch(700, 250, 90, 8),
+      makeBranch(520, 180, 120, 6),
+    ],
+    slopes: [
+      makeRoot(140, 470, 200, 435),
+      makeRoot(500, 380, 560, 325),
+    ],
+    leaves: [makeStar(250, 395), makeStar(440, 345), makeStar(615, 285),
+             makeStar(745, 215), makeStar(580, 145)],
+    // liana entre el tronco y la rama de la derecha
+    vines: [makeVine(500, 300, 60, 90, 0.22)],
+    flower: { x: 460, y: 140, r: 11, collected: false },
+    goal: { x: 540, y: 90, w: 60, h: 50 }
+  };
+}
+
+function level3() {
+  // Copa del arbol: todo fino, dos lianas y la flor arriba del todo
+  return {
+    platforms: [
+      makeBranch(0, 470, 130),
+      makeBranch(180, 425, 90, 10, true),
+      makeTrunk(330, 375, 100),
+      makeBranch(480, 325, 85, 12, true),
+      makeBranch(620, 265, 85, 10, true),
+      makeBranch(450, 205, 90, 8),
+      makeBranch(600, 145, 100, 6, true),
+    ],
+    slopes: [
+      makeRoot(130, 470, 180, 430),
+      makeRoot(430, 375, 480, 330),
+    ],
+    leaves: [makeStar(225, 390), makeStar(380, 340), makeStar(522, 290),
+             makeStar(660, 230), makeStar(495, 170), makeStar(650, 110)],
+    vines: [
+      makeVine(280, 250, 55, 110, 0.24),    // sube por la izquierda
+      makeVine(700, 180, 55, 110, -0.24),   // y vuelve por la derecha
+    ],
+    flower: { x: 400, y: 160, r: 11, collected: false },
+    goal: { x: 620, y: 55, w: 60, h: 50 }
+  };
+}
+
+function handcraftedLevel(lvl) {
+  if (lvl === 1) return level1();
+  if (lvl === 2) return level2();
+  if (lvl === 3) return level3();
+  return null;
+}
+
+function getLevelData(lvl) {
+  return handcraftedLevel(lvl);
+}
+
+// ---------- Audio (WebAudio, sin archivos externos) ----------
+
+let audioCtx = null;
+function beep(freq, duration, type, volume) {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.value = freq;
+    const v = volume === undefined ? 0.06 : volume;
+    gain.gain.setValueAtTime(v, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (err) {
+    // Silencioso: si el navegador bloquea el audio, el juego sigue funcionando
+  }
+}
+
+// ---------- Música de fondo (temas celestiales hechos en ReBirth) ----------
+// Un tema distinto por nivel, todos alegres y con aire "celestial".
+
+const MUSIC_THEMES = {
+  // Prototipo: usa los temas existentes hasta componer los de la selva
+  1: { url: 'musica/cielo-2-brisa.ogg', volume: 0.40 },
+  2: { url: 'musica/cielo-1-nubes.ogg', volume: 0.40 },
+  3: { url: 'musica/cielo-3-altura.ogg', volume: 0.42 },
+  victory: { url: 'musica/cielo-victoria.ogg', volume: 0.5 }
+};
+
+function musicThemeForLevel(lvl) {
+  return MUSIC_THEMES[lvl] ? lvl : 1;
+}
+
+let music = null;
+let musicOn = true;
+let currentTheme = null;
+
+function initMusic() {
+  try {
+    music = new Audio();
+    music.loop = true;
+    const tryPlay = () => {
+      if (!music || !musicOn) return;
+      const p = music.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+    document.addEventListener('keydown', tryPlay, { once: true });
+    document.addEventListener('pointerdown', tryPlay, { once: true });
+    playTheme(musicThemeForLevel(level));
+  } catch (err) {
+    music = null;
+  }
+}
+
+function playTheme(name, restart) {
+  const theme = MUSIC_THEMES[name];
+  if (!music || !theme) return;
+  if (currentTheme === name && !restart) return;
+  currentTheme = name;
+  music.pause();
+  music.src = theme.url;
+  music.loop = true;
+  music.volume = theme.volume;
+  music.currentTime = 0;
+  if (musicOn) {
+    const p = music.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+}
+
+function playVictoryJingle() {
+  if (!music || !musicOn) return;
+  currentTheme = 'victory';
+  music.pause();
+  music.src = MUSIC_THEMES.victory.url;
+  music.loop = false;
+  music.volume = MUSIC_THEMES.victory.volume;
+  music.currentTime = 0;
+  const p = music.play();
+  if (p && p.catch) p.catch(() => {});
+  music.onended = () => playTheme(musicThemeForLevel(level), true);
+}
+
+function toggleMusic() {
+  if (!music) return;
+  musicOn = !musicOn;
+  if (musicOn) {
+    const p = music.play();
+    if (p && p.catch) p.catch(() => {});
+  } else {
+    music.pause();
+  }
+  const hint = document.getElementById('music-hint');
+  if (hint) hint.textContent = musicOn
+    ? 'M = música on/off · música de selva hecha en ReBirth (RB-338)'
+    : '🔇 música apagada · pulsa M para volver a encenderla';
+}
+
+// ---------- Partículas ----------
+
+function spawnParticles(x, y, color, count, spread) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * (spread || 4),
+      vy: -Math.random() * 3 - 1,
+      life: 30 + Math.random() * 20,
+      color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.10;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ---------- Estado del nivel ----------
+
+function loadLevel(lvl) {
+  data = getLevelData(lvl);
+  particles.length = 0;
+  resetPosition();
+}
+
+// Volver al inicio tambien hace crecer de nuevo las ramas rotas
+function resetWithBranches() {
+  resetPosition();
+  restoreBranches();
+}
+
+function resetPosition() {
+  player.x = startX;
+  player.y = startY;
+  player.vx = 0;
+  player.vy = 0;
+  player.jumpsLeft = MAX_JUMPS;
+  player.frozen = false;
+  player.onGround = false;
+  player.coyote = 0;
+  player.jumpBuffer = 0;
+}
+
+function rectsCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx*dx + dy*dy;
+  let t = lenSq === 0 ? 0 : ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return { x: x1 + t * dx, y: y1 + t * dy, t };
+}
+
+
+// ---------- Lógica principal ----------
+
+// Las nubes se mecen despacio; al pisarlas se hunden un poco
+function updateBranches() {
+  for (const p of data.platforms) {
+    // Solo las ramas se mecen, se hunden y se rompen; los troncos son firmes
+    if (p.kind !== 'branch') continue;
+    if (p.broken) continue;
+    if (p.sway) {
+      // se mueve, pero nunca se sale del lienzo
+      const minX = 0, maxX = canvas.width - p.w;
+      const want = p.baseX + Math.sin(frame * 0.012 + p.phase) * p.sway;
+      p.x = Math.max(minX, Math.min(maxX, want));
+    }
+    // el hundimiento vuelve a 0 poco a poco
+    if (p.sink > 0) p.sink = Math.max(0, p.sink - 0.4);
+    p.y = p.baseY + p.sink;
+    // cuenta atras de la rotura de las ramas finas
+    if (p.crack > 0) {
+      p.crack--;
+      if (p.crack === 0) {
+        p.broken = true;
+        beep(120, 0.25, 'sawtooth', 0.05);
+        spawnParticles(p.x + p.w / 2, p.y, '#6b4a2a', 14, 5);
+      }
+    }
+  }
+}
+
+// Al volver al inicio del nivel, las ramas rotas vuelven a crecer
+function restoreBranches() {
+  for (const p of data.platforms) {
+    if (p.kind !== 'branch') continue;
+    p.broken = false;
+    p.crack = 0;
+    p.sink = 0;
+    p.y = p.baseY;
+  }
+}
+
+// Brisa: zonas que empujan al jugador con un pulso periódico
+// La liana se activa cuando el jugador la toca.
+function updateVines() {
+  for (const v of data.vines || []) {
+    if (v.cool > 0) v.cool--;
+    const touching = rectsCollide(player.x, player.y, player.w, player.h, v.x, v.y, v.w, v.h);
+    if (touching && v.cool === 0 && !v.active) {
+      v.active = true;
+      v.cool = 40;                 // no vuelve a dispararse enseguida
+      beep(420, 0.2, 'triangle', 0.045);
+      spawnParticles(v.x + v.w / 2, v.y + v.h / 2, '#8fdc6a', 8, 4);
+    } else if (!touching && v.active) {
+      v.active = false;
+    }
+  }
+}
+
+function update() {
+  frame++;
+  if (player.frozen) {
+    updateBranches();
+    updateVines();
+    updateParticles();
+    return;
+  }
+
+  // Movimiento horizontal con aceleración y tope de velocidad
+  if (keys['ArrowLeft']) player.vx -= MOVE_ACCEL;
+  if (keys['ArrowRight']) player.vx += MOVE_ACCEL;
+
+  // La liana te lanza en su direccion mientras la estas tocando
+  for (const v of data.vines || []) {
+    if (v.active && rectsCollide(player.x, player.y, player.w, player.h, v.x, v.y, v.w, v.h)) {
+      player.vx += v.force;
+      player.vy -= 0.22;                     // tambien te eleva un poco
+      if (frame % 6 === 0) spawnParticles(player.x + player.w / 2, player.y + player.h, '#8fdc6a', 2, 3);
+    }
+  }
+
+  player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
+  player.vx *= FRICTION;
+  if (Math.abs(player.vx) < 0.05) player.vx = 0;
+
+  // Coyote time y jump buffer
+  if (player.onGround) player.coyote = COYOTE_FRAMES;
+  else if (player.coyote > 0) player.coyote--;
+
+  if (jumpPressed) player.jumpBuffer = JUMP_BUFFER_FRAMES;
+  else if (player.jumpBuffer > 0) player.jumpBuffer--;
+
+  if (player.jumpBuffer > 0 && player.jumpsLeft > 0) {
+    const isAirJump = player.jumpsLeft === MAX_JUMPS - 1 && !player.onGround && player.coyote === 0;
+    player.vy = isAirJump ? -(JUMP_POWER * 0.92) : -JUMP_POWER;
+    player.onGround = false;
+    player.coyote = 0;
+    player.jumpBuffer = 0;
+    player.jumpsLeft--;
+    beep(isAirJump ? 720 : 560, 0.09, 'sine', 0.05);
+    spawnParticles(player.x + player.w / 2, player.y + player.h, '#e8f6ff', 5, 3);
+  }
+  jumpPressed = false;
+
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  updateBranches();
+
+  const wasOnGround = player.onGround;
+  player.onGround = false;
+
+  for (const p of data.platforms) {
+    if (p.broken) continue;                  // la rama rota ya no sostiene
+    const feetY = player.y + player.h;
+    const prevFeetY = feetY - player.vy;
+    if (
+      player.x + player.w > p.x &&
+      player.x < p.x + p.w &&
+      prevFeetY <= p.y + COYOTE_TOLERANCE &&
+      feetY >= p.y &&
+      player.vy >= 0
+    ) {
+      player.y = p.y - player.h;
+      if (p.kind === 'branch') p.sink = CLOUD_SINK;   // la rama cede al pisarla
+      // Una rama fina se agrieta al pisarla y se rompe enseguida
+      if (p.thin && !p.broken && p.crack === 0) {
+        p.crack = 22;                        // frames hasta romperse
+        beep(180, 0.12, 'sawtooth', 0.04);
+      }
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = MAX_JUMPS;
+    }
+  }
+
+  for (const s of data.slopes) {
+    const footX = player.x + player.w/2;
+    const footY = player.y + player.h;
+    const closest = closestPointOnSegment(footX, footY, s.x1, s.y1, s.x2, s.y2);
+    const dist = Math.hypot(footX - closest.x, footY - closest.y);
+    if (dist < 14 && player.vy >= 0 && footY <= closest.y + 16) {
+      player.y = closest.y - player.h;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumpsLeft = MAX_JUMPS;
+      const slopeDir = (s.x2 - s.x1) > 0 ? 1 : -1;
+      const slopeSteepness = Math.abs((s.y2 - s.y1) / (s.x2 - s.x1));
+      player.vx += slopeDir * slopeSteepness * 2.5;
+    }
+  }
+
+  if (!wasOnGround && player.onGround) {
+    spawnParticles(player.x + player.w / 2, player.y + player.h, '#ffffff', 4, 2);
+  }
+
+  if (player.x < 0) { player.x = 0; player.vx = 0; }
+  if (player.x + player.w > canvas.width) { player.x = canvas.width - player.w; player.vx = 0; }
+
+  // estrellas
+  const cx = player.x + player.w/2, cy = player.y + player.h/2;
+  for (const c of data.leaves) {
+    if (!c.collected && Math.hypot(cx - c.x, cy - c.y) < c.r + player.w/2) {
+      c.collected = true;
+      score += LEAF_VALUE;
+      beep(1040, 0.08, 'sine', 0.05);
+      spawnParticles(c.x, c.y, '#fff3a8', 7, 4);
+    }
+  }
+
+  // arcoíris
+  const rb = data.flower;
+  if (rb && !rb.collected && Math.hypot(cx - rb.x, cy - rb.y) < rb.r + player.w / 2) {
+    rb.collected = true;
+    score += FLOWER_VALUE;
+    beep(1560, 0.22, 'sine', 0.06);
+    spawnParticles(rb.x, rb.y, '#ffd1f0', 14, 5);
+  }
+
+  updateVines();
+
+  // Caer del cielo: el hueco entre nubes se lo traga
+  if (player.y > canvas.height) {
+    die('🍂 ¡Te caíste del árbol! Vuelves al inicio...');
+    return;
+  }
+
+  if (rectsCollide(player.x, player.y, player.w, player.h, data.goal.x, data.goal.y, data.goal.w, data.goal.h)) {
+    win();
+    return;
+  }
+
+  updateParticles();
+}
+
+
+// ---------- Fin de nivel, caída, reinicio ----------
+
+function die(reason) {
+  msgEl.textContent = reason || '🍂 ¡Te caíste del árbol! Vuelves al inicio...';
+  msgEl.style.color = '#ff9ec4';
+  flashUntil = frame + 16;
+  beep(300, 0.35, 'sine', 0.05);
+  setTimeout(() => beep(200, 0.3, 'sine', 0.04), 120);
+  spawnParticles(player.x + player.w / 2,
+                 Math.min(player.y + player.h / 2, canvas.height - 10),
+                 '#cfe8ff', 16, 5);
+  resetWithBranches();      // las ramas rotas vuelven a crecer
+  setTimeout(() => { msgEl.textContent = ''; }, 1000);
+}
+
+let running = true;
+
+function win() {
+  msgEl.style.color = '#a8ffcf';
+  running = false;
+  player.vx = 0;
+  player.vy = 0;
+  if (level >= MAX_LEVEL) {
+    beep(660, 0.15, 'sine', 0.07);
+    setTimeout(() => beep(880, 0.15, 'sine', 0.07), 160);
+    setTimeout(() => beep(1180, 0.35, 'sine', 0.07), 320);
+    playVictoryJingle();
+    msgEl.textContent = '🏆 ¡Subiste las ' + MAX_LEVEL + ' ramas con ' + score + ' puntos! Presiona R para jugar otra vez.';
+  } else {
+    beep(700, 0.1, 'sine', 0.06);
+    setTimeout(() => beep(1050, 0.18, 'sine', 0.06), 110);
+    const nextLevel = level + 1;
+    msgEl.textContent = '✅ ¡Nivel ' + level + ' superado! Subiendo a la rama ' + nextLevel + '...';
+    setTimeout(() => {
+      level = nextLevel;
+      loadLevel(level);
+      playTheme(musicThemeForLevel(level));   // cada nivel tiene su tema
+      msgEl.textContent = '';
+      running = true;
+      requestAnimationFrame(loop);
+    }, 1000);
+  }
+}
+
+function restartGame() {
+  level = 1;
+  score = 0;
+  msgEl.textContent = '';
+  msgEl.style.color = '#a8ffcf';
+  loadLevel(level);
+  if (music) music.onended = null;
+  playTheme(musicThemeForLevel(level), true);
+  if (!running) {
+    running = true;
+    requestAnimationFrame(loop);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'r' || e.key === 'R') && !running) restartGame();
+  if (e.key === 'm' || e.key === 'M') toggleMusic();
+});
+
+
+// ---------- Dibujo ----------
+
+// ---------- Dibujo: selva ----------
+
+function drawBackground() {
+  // Selva: verde profundo arriba, luz filtrada entre hojas abajo
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, '#0d2a1a');
+  sky.addColorStop(0.5, '#1f5a34');
+  sky.addColorStop(1, '#6fae5c');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Rayos de luz entre las copas
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  ctx.fillStyle = '#eaffb0';
+  for (let i = 0; i < 4; i++) {
+    const x = 120 + i * 190 + Math.sin(frame * 0.004 + i) * 20;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + 60, 0);
+    ctx.lineTo(x + 150, canvas.height);
+    ctx.lineTo(x + 20, canvas.height);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Hojas lejanas que se mueven con el viento
+  ctx.fillStyle = 'rgba(20, 60, 35, 0.35)';
+  for (let i = 0; i < 7; i++) {
+    const x = ((frame * 0.2 + i * 140) % (canvas.width + 160)) - 80;
+    const y = 30 + (i % 4) * 55;
+    leafShape(x, y, 34 + (i % 3) * 8, frame * 0.01 + i);
+  }
+}
+
+// Una hoja simple (dos arcos), rotada
+function leafShape(x, y, size, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, size, size * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Rama: madera con corteza; si es fina, se agrieta y se rompe
+function drawBranch(p) {
+  if (p.broken) {
+    // quedan dos muñones colgando
+    ctx.fillStyle = '#4a3220';
+    ctx.fillRect(p.x - 2, p.y, 10, 8);
+    ctx.fillRect(p.x + p.w - 8, p.y, 10, 8);
+    return;
+  }
+  const h = p.h;
+  const tint = p.crack > 0 ? Math.sin(frame * 0.8) * 22 : 0;
+
+  // sombra
+  ctx.fillStyle = 'rgba(10, 30, 15, 0.35)';
+  ctx.fillRect(p.x + 2, p.y + 5, p.w, h * 0.5);
+
+  // madera
+  ctx.fillStyle = p.thin ? '#7d5a34' : '#6b4a2a';
+  ctx.fillRect(p.x, p.y, p.w, h * 0.6);
+  // corteza superior iluminada
+  ctx.fillStyle = p.thin ? 'rgb(' + (150 + tint) + ',' + (120 + tint) + ',70)' : '#8a6540';
+  ctx.fillRect(p.x, p.y, p.w, 5);
+
+  // hojas en los extremos
+  ctx.fillStyle = '#2f7a3f';
+  leafShape(p.x + 4, p.y - 3, 9, -0.5);
+  leafShape(p.x + p.w - 4, p.y - 3, 9, 0.5);
+  if (p.thin) leafShape(p.x + p.w / 2, p.y - 5, 8, 0.2);
+
+  // grietas cuando esta a punto de romperse
+  if (p.crack > 0) {
+    ctx.strokeStyle = 'rgba(40, 20, 5, 0.9)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i <= 3; i++) {
+      const gx = p.x + (p.w / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(gx - 3, p.y);
+      ctx.lineTo(gx + 2, p.y + h * 0.55);
+      ctx.lineTo(gx - 1, p.y + h * 0.6);
+      ctx.stroke();
+    }
+  }
+}
+
+// Tronco: pieza ancha y firme, con vetas y una raiz a cada lado
+function drawTrunk(p) {
+  ctx.fillStyle = 'rgba(10, 30, 15, 0.35)';
+  ctx.fillRect(p.x + 3, p.y + 6, p.w, p.h);
+  ctx.fillStyle = '#5b3d22';
+  ctx.fillRect(p.x, p.y, p.w, p.h + 6);
+  ctx.fillStyle = '#8a6540';
+  ctx.fillRect(p.x, p.y, p.w, 5);
+  // vetas
+  ctx.strokeStyle = '#41290f';
+  ctx.lineWidth = 1;
+  for (let i = 10; i < p.w; i += 16) {
+    ctx.beginPath();
+    ctx.moveTo(p.x + i, p.y + 5);
+    ctx.lineTo(p.x + i + 3, p.y + p.h + 4);
+    ctx.stroke();
+  }
+  // raices
+  ctx.fillStyle = '#4a3220';
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y + p.h);
+  ctx.lineTo(p.x - 8, p.y + p.h + 10);
+  ctx.lineTo(p.x + 6, p.y + p.h);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(p.x + p.w, p.y + p.h);
+  ctx.lineTo(p.x + p.w + 8, p.y + p.h + 10);
+  ctx.lineTo(p.x + p.w - 6, p.y + p.h);
+  ctx.fill();
+}
+
+// Raiz: cuesta de tierra con hierba encima
+function drawRoot(s) {
+  ctx.fillStyle = '#4a3220';
+  ctx.beginPath();
+  ctx.moveTo(s.x1, s.y1);
+  ctx.lineTo(s.x2, s.y2);
+  ctx.lineTo(s.x2, s.y2 + 24);
+  ctx.lineTo(s.x1, s.y1 + 24);
+  ctx.closePath();
+  ctx.fill();
+  // hierba
+  ctx.strokeStyle = '#4fae52';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(s.x1, s.y1);
+  ctx.lineTo(s.x2, s.y2);
+  ctx.stroke();
+}
+
+// Hoja (+10)
+function drawLeaf(c) {
+  if (c.collected) return;
+  const bob = Math.sin(frame * 0.08 + c.x * 0.05) * 2;
+  ctx.save();
+  ctx.shadowColor = 'rgba(160, 240, 120, 0.85)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#a8e86a';
+  ctx.translate(c.x, c.y + bob);
+  ctx.rotate(Math.sin(frame * 0.05 + c.x) * 0.4);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, c.r, c.r * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // nervio
+  ctx.strokeStyle = '#4f7d2a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(c.x - c.r * 0.7, c.y + bob);
+  ctx.lineTo(c.x + c.r * 0.7, c.y + bob);
+  ctx.stroke();
+}
+
+// Flor (+50)
+function drawFlower(rb) {
+  if (!rb || rb.collected) return;
+  const bob = Math.sin(frame * 0.06) * 3;
+  const cx = rb.x, cy = rb.y + bob;
+  const cols = ['#ff8ac4', '#ffd166', '#c58cff'];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI * 2 / 6) * i;
+    ctx.fillStyle = cols[i % cols.length];
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(a) * rb.r * 0.7, cy + Math.sin(a) * rb.r * 0.7, rb.r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#fff3a8';
+  ctx.beginPath();
+  ctx.arc(cx, cy, rb.r * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Liana: cuerda verde colgante; brilla cuando te agarra
+function drawVine(b) {
+  const sway = Math.sin(frame * 0.03 + b.x) * 3;
+  ctx.strokeStyle = b.active ? '#a8e86a' : '#3f8a3a';
+  ctx.lineWidth = b.active ? 5 : 4;
+  ctx.beginPath();
+  ctx.moveTo(b.x + b.w / 2, b.y - 40);
+  ctx.quadraticCurveTo(b.x + b.w / 2 + sway, b.y + b.h * 0.5, b.x + b.w / 2, b.y + b.h);
+  ctx.stroke();
+  // hojas de la liana
+  ctx.fillStyle = b.active ? '#c8f78a' : '#4fae52';
+  for (let i = 1; i <= 3; i++) {
+    const t = i / 4;
+    const y = b.y - 40 + (b.h + 40) * t;
+    leafShape(b.x + b.w / 2 + (i % 2 ? 7 : -7), y, 7, i % 2 ? 0.6 : -0.6);
+  }
+  if (b.active) {
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#a8e86a';
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 50);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+
+function drawGoal(g) {
+  // Claro del bosque: un arco de ramas con luz dorada
+  const glow = 0.5 + Math.sin(frame * 0.09) * 0.3;
+  ctx.save();
+  ctx.shadowColor = 'rgba(255, 230, 140, ' + glow.toFixed(2) + ')';
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = 'rgba(255, 247, 205, 0.9)';
+  ctx.fillRect(g.x, g.y, g.w, g.h);
+  ctx.restore();
+  // hojas alrededor
+  ctx.fillStyle = '#4fae52';
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI * (0.15 + i * 0.17);
+    leafShape(g.x + g.w / 2 + Math.cos(a) * (g.w * 0.62), g.y + g.h / 2 - Math.sin(a) * (g.h * 0.6), 10, a);
+  }
+  ctx.strokeStyle = '#7a5a1a';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(g.x + 2, g.y + 2, g.w - 4, g.h - 4);
+  ctx.fillStyle = '#5a4010';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('META', g.x + 14, g.y + 30);
+}
+
+function drawPlayer() {
+  ctx.save();
+  if (!player.onGround) {
+    ctx.shadowColor = 'rgba(200, 247, 138, 0.9)';
+    ctx.shadowBlur = 12;
+  }
+  // cuerpo (ardilla)
+  ctx.fillStyle = player.frozen ? '#d9a8b8' : '#c98a4b';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(player.x, player.y + 4, player.w, player.h - 4, 8);
+  else ctx.rect(player.x, player.y + 4, player.w, player.h - 4);
+  ctx.fill();
+  // orejas
+  ctx.fillStyle = player.frozen ? '#d9a8b8' : '#c98a4b';
+  ctx.beginPath();
+  ctx.arc(player.x + 6, player.y + 4, 4, 0, Math.PI * 2);
+  ctx.arc(player.x + player.w - 6, player.y + 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // cola
+  ctx.fillStyle = '#b06f38';
+  ctx.beginPath();
+  ctx.ellipse(player.x - 4, player.y + 16, 7, 10, Math.sin(frame * 0.2) * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // ojos: miran hacia donde se mueve
+  const look = player.vx > 0.5 ? 4 : (player.vx < -0.5 ? 1 : 3);
+  ctx.fillStyle = '#1d2b1a';
+  ctx.fillRect(player.x + look, player.y + 10, 3, 4);
+  ctx.fillRect(player.x + look + 6, player.y + 10, 3, 4);
+  // nariz
+  ctx.fillStyle = '#3a2412';
+  ctx.fillRect(player.x + player.w / 2 - 1, player.y + 16, 3, 2);
+
+  // saltos restantes
+  if (!player.frozen) {
+    for (let i = 0; i < player.jumpsLeft; i++) {
+      ctx.fillStyle = 'rgba(200, 247, 138, 0.95)';
+      ctx.fillRect(player.x + 4 + i * 7, player.y - 8, 5, 3);
+    }
+  }
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('Rama: ' + level + ' / ' + MAX_LEVEL, 10, 20);
+  ctx.fillText('Puntos: ' + score, 10, 40);
+
+  const total = data.leaves.length;
+  const got = data.leaves.filter(c => c.collected).length;
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#c8f78a';
+  ctx.fillText('🍃 ' + got + ' / ' + total, canvas.width - 90, 20);
+}
+
+function draw() {
+  drawBackground();
+
+  // lianas detras de las plataformas
+  for (const v of data.vines || []) drawVine(v);
+
+  for (const s of data.slopes) drawRoot(s);
+  for (const p of data.platforms) {
+    if (p.kind === 'trunk') drawTrunk(p);
+    else drawBranch(p);
+  }
+  for (const c of data.leaves) drawLeaf(c);
+  drawFlower(data.flower);
+  drawGoal(data.goal);
+  drawPlayer();
+  drawParticles();
+  drawHUD();
+
+  if (frame < flashUntil) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loadLevel(level);
+initTouchControls();
+initMusic();
+loop();
+</script>
+
+</body>
+</html>

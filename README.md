@@ -1,5 +1,64 @@
 # Juegos
 
+Sitio estático con **dos juegos** y una portada para elegir. Sin build, sin dependencias:
+se publica la carpeta tal cual (Netlify, GitHub Pages, o un `python3 -m http.server`).
+
+```
+index.html            ← portada: elegir juego
+piso-es-lava.html     ← juego 1 (10 niveles)
+cielo-se-cae.html     ← juego 2 (10 niveles)
+musica/               ← temas .ogg (+ los .rbs originales de ReBirth)
+netlify.toml          ← configuración de Netlify (sin build)
+```
+
+## Desplegar en Netlify desde GitHub
+
+```bash
+cd ~/juegos
+git remote add origin git@github.com:TU-USUARIO/TU-REPO.git
+git branch -M main
+git push -u origin main
+```
+
+Luego, en Netlify: **Add new site → Import an existing project → GitHub → tu repo**.
+
+| Ajuste en Netlify | Valor |
+|---|---|
+| Build command | *(vacío)* |
+| Publish directory | `.` |
+| Framework preset | None |
+
+`netlify.toml` ya declara esos valores, así que no hay que tocarlos. Cada `git push`
+publica los cambios automáticamente.
+
+**Por qué funciona sin configurar nada:** todos los assets usan rutas **relativas**
+(`musica/…`), así que el sitio vale igual en la raíz del dominio o en una subcarpeta
+(probado sirviéndolo desde `/juegos/`).
+
+**Para probarlo en local antes de subir:**
+
+```bash
+cd ~/juegos && python3 -m http.server 8000
+# y abre http://localhost:8000
+```
+
+---
+
+## Pruebas del sitio
+
+```bash
+cd /tmp/pwtest
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_portada.cjs        # portada + navegación + subcarpeta
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_piso_es_lava.cjs   # 29 comprobaciones
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/test_cielo_se_cae.cjs   # 35 comprobaciones
+NODE_PATH=/tmp/pwtest/node_modules node ~/juegos/escalera_cielo_se_cae.cjs # los 10 niveles jugables
+```
+
+Los `.cjs` quedan en el repo (documentan y permiten re-verificar), pero no se sirven en
+el sitio: `netlify.toml` los redirige a la portada.
+
+---
+
 ## El Cielo se Cae — `cielo-se-cae.html`
 
 Versión "de nubes" de El Piso es Lava: misma física, otro mundo. **10 niveles.**
